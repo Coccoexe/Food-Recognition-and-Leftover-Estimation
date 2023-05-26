@@ -1,7 +1,7 @@
 ﻿// Food-Recognition-and-Leftover-Estimation.cpp : Defines the entry point for the application.
 //
 
-#include "Food-Recognition-and-Leftover-Estimation.h"
+#include "main.hpp"
 
 using namespace std;
 
