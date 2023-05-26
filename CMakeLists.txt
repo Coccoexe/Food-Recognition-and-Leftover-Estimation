@@ -12,7 +12,7 @@ endif()
 project ("Food-Recognition-and-Leftover-Estimation")
 
 # Add source to this project's executable.
-add_executable (Food-Recognition-and-Leftover-Estimation "Food-Recognition-and-Leftover-Estimation.cpp" "Food-Recognition-and-Leftover-Estimation.h")
+add_executable (Food-Recognition-and-Leftover-Estimation "main.cpp" "main.hpp")
 
 if (CMAKE_VERSION VERSION_GREATER 3.12)
   set_property(TARGET Food-Recognition-and-Leftover-Estimation PROPERTY CXX_STANDARD 20)
