@@ -45,7 +45,8 @@ int main()
 		for (int image = 0; image < 4; image++)
 		{	// Process each IMAGE in the tray
 			cv::Mat img = cv::imread(folder + files[image]);                                      // Read image
-
+			cv::imshow("Original", img);                                                          // Show original image
+			cv::waitKey(0);
 			
 		}
 	}
