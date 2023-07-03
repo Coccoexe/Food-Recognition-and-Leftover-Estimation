@@ -12,10 +12,10 @@ endif()
 project ("Food-Recognition-and-Leftover-Estimation")
 
 # Add source to this project's executable.
-add_executable ("Food-Recognition-and-Leftover-Estimation" "src/main.cpp" "src/main.hpp")
+add_executable (${PROJECT_NAME} "src/main.cpp" "src/main.hpp")
 
 if (CMAKE_VERSION VERSION_GREATER 3.12)
-  set_property(TARGET "Food-Recognition-and-Leftover-Estimation" PROPERTY CXX_STANDARD 20)
+  set_property(TARGET ${PROJECT_NAME} PROPERTY CXX_STANDARD 20)
 endif()
 
 # TODO: Add tests and install targets if needed.
