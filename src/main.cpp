@@ -14,6 +14,7 @@
 #include <map>
 #include <string>
 #include <vector>
+#include <opencv2/xfeatures2d.hpp>
 
 using namespace std;
 
@@ -44,14 +45,50 @@ int main()
 	string matching = "./matching/";                                                              // Matching folder name
 	string output = "./output/";                                                                  // Output folder name
 
+	cv::Mat img1 = cv::imread(matching + "tray1/leftover1.png");
+	cv::Mat img2 = cv::imread(dataset + "tray1/food_image.jpg");
+
+	//SURF
+
+	cv::Ptr<cv::xfeatures2d::SURF> detector = cv::xfeatures2d::SURF::create(400);
+	std::vector<cv::KeyPoint> keypoints1, keypoints2;
+	cv::Mat descriptors1, descriptors2;
+	detector->detectAndCompute(img1, cv::noArray(), keypoints1, descriptors1);
+	detector->detectAndCompute(img2, cv::noArray(), keypoints2, descriptors2);
+
+	cv::Ptr<cv::DescriptorMatcher> matcher = cv::DescriptorMatcher::create(cv::DescriptorMatcher::FLANNBASED);
+	std::vector<std::vector<cv::DMatch>> knn_matches;
+	matcher->knnMatch(descriptors1, descriptors2, knn_matches, 2);
+
+	const float ratio_thresh = 0.7f;
+	std::vector<cv::DMatch> good_matches;
+	for (size_t i = 0; i < knn_matches.size(); i++)
+	{
+		if (knn_matches[i][0].distance < ratio_thresh * knn_matches[i][1].distance)
+		{
+			good_matches.push_back(knn_matches[i][0]);
+		}
+	}
+
+	cv::Mat img_matches;
+	cv::drawMatches(img1, keypoints1, img2, keypoints2, good_matches, img_matches, cv::Scalar::all(-1),
+		cv::Scalar::all(-1), std::vector<char>(), cv::DrawMatchesFlags::NOT_DRAW_SINGLE_POINTS);
+	
+	cv::imshow("Good Matches", img_matches);
+	cv::waitKey(0);
+	return 0;
+
+
+	/*
 	std::multimap<int, const cv::Mat> match;                                                      // Map of matching images
 	for (int i = 1; i < labels.size(); i++)
-	{  // Process each LABEL of images that will be used for matching
+	{   // Process each LABEL of images that will be used for matching
 		string folder = matching + labels.at(i) + "/";                                            // Matching folder name
 
 		for (const auto& entry : filesystem::directory_iterator(folder))
-		{  // Process each IMAGE in the folder
-			const cv::Mat img = cv::imread(entry.path().string());                                // Read image
+		{   // Process each IMAGE in the folder
+			const cv::Mat img = cv::imread(entry.path().string());         
+			return 0;// Read image
 			match.insert(std::pair<int, const cv::Mat>(i, img));                                  // Add (label, image) to map
 		}
 	}
@@ -78,5 +115,5 @@ int main()
 	}
 
 
-	return 0;
+	return 0;*/
 }

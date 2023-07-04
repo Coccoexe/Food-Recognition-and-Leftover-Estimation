@@ -14,4 +14,5 @@ private:
 	const cv::Mat source_image;
 	const std::vector<std::string> labels;
 	const std::multimap<int, const cv::Mat> match;
+
 };
