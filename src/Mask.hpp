@@ -13,4 +13,7 @@ public:
 private:
 	const cv::Mat source_image;
 	const std::vector<std::pair<int, cv::Rect>> bounding_boxes;
+
+	cv::Mat saturationThresholding();
+	cv::Mat textureSegmentation();
 };

@@ -45,7 +45,7 @@ int main()
 	string matching = "./matching/";                                                              // Matching folder name
 	string output = "./output/";                                                                  // Output folder name
 
-	int tray = 4;                                                                                 // Tray number
+	int tray = 1;                                                                                 // Tray number
 	cv::Mat image = cv::imread(dataset + "tray" + to_string(tray) + "/food_image.jpg");
 	vector<pair<int, cv::Rect>> box;
 	switch (tray)
