@@ -45,14 +45,66 @@ int main()
 	string matching = "./matching/";                                                              // Matching folder name
 	string output = "./output/";                                                                  // Output folder name
 
-	cv::Mat sgm = cv::imread(dataset + "tray1/food_image.jpg");
+	int tray = 4;                                                                                 // Tray number
+	cv::Mat image = cv::imread(dataset + "tray" + to_string(tray) + "/food_image.jpg");
 	vector<pair<int, cv::Rect>> box;
-	box.push_back(pair<int, cv::Rect>(6, cv::Rect(370, 436, 313, 331)));
-	box.push_back(pair<int, cv::Rect>(1, cv::Rect(737, 145, 384, 400)));
-	box.push_back(pair<int, cv::Rect>(10, cv::Rect(259, 532, 347, 357)));
-	box.push_back(pair<int, cv::Rect>(13, cv::Rect(235, 79, 243, 178)));
-
-	Mask m(sgm, box);
+	switch (tray)
+	{
+	case 1:
+		box.push_back(pair<int, cv::Rect>(6, cv::Rect(370, 436, 313, 331)));
+		box.push_back(pair<int, cv::Rect>(1, cv::Rect(737, 145, 384, 400)));
+		box.push_back(pair<int, cv::Rect>(10, cv::Rect(259, 532, 347, 357)));
+		box.push_back(pair<int, cv::Rect>(13, cv::Rect(235, 79, 243, 178)));
+		break;
+	case 2:
+		box.push_back(pair<int, cv::Rect>(2, cv::Rect(747, 450, 365, 410)));
+		box.push_back(pair<int, cv::Rect>(7, cv::Rect(563, 130, 144, 238)));
+		box.push_back(pair<int, cv::Rect>(12, cv::Rect(150, 451, 355, 346)));
+		box.push_back(pair<int, cv::Rect>(11, cv::Rect(368, 122, 262, 278)));
+		break;
+	case 3:
+		box.push_back(pair<int, cv::Rect>(12, cv::Rect(163, 481, 352, 337)));
+		box.push_back(pair<int, cv::Rect>(2, cv::Rect(744, 452, 352, 397)));
+		box.push_back(pair<int, cv::Rect>(8, cv::Rect(371, 140, 292, 305)));
+		break;
+	case 4:
+		box.push_back(pair<int, cv::Rect>(12, cv::Rect(805, 56, 417, 352)));
+		box.push_back(pair<int, cv::Rect>(5, cv::Rect(574, 508, 444, 376)));
+		box.push_back(pair<int, cv::Rect>(11, cv::Rect(188, 127, 357, 340)));
+		box.push_back(pair<int, cv::Rect>(13, cv::Rect(109, 565, 227, 277)));
+		box.push_back(pair<int, cv::Rect>(7, cv::Rect(384, 117, 219, 266)));
+		break;
+	case 5:
+		box.push_back(pair<int, cv::Rect>(10, cv::Rect(730, 519, 378, 284)));
+		box.push_back(pair<int, cv::Rect>(13, cv::Rect(516, 0, 214, 222)));
+		box.push_back(pair<int, cv::Rect>(8, cv::Rect(731, 294, 293, 389)));
+		box.push_back(pair<int, cv::Rect>(3, cv::Rect(163, 305, 403, 393)));
+		break;
+	case 6:
+		box.push_back(pair<int, cv::Rect>(6, cv::Rect(762, 547, 276, 334)));
+		box.push_back(pair<int, cv::Rect>(12, cv::Rect(845, 103, 305, 350)));
+		box.push_back(pair<int, cv::Rect>(10, cv::Rect(599, 505, 260, 379)));
+		box.push_back(pair<int, cv::Rect>(4, cv::Rect(225, 139, 383, 354)));
+		break;
+	case 7:
+		box.push_back(pair<int, cv::Rect>(7, cv::Rect(612, 664, 256, 191)));
+		box.push_back(pair<int, cv::Rect>(12, cv::Rect(824, 112, 306, 333)));
+		box.push_back(pair<int, cv::Rect>(11, cv::Rect(641, 521, 318, 285)));
+		box.push_back(pair<int, cv::Rect>(4, cv::Rect(223, 135, 385, 350)));
+		break;
+	case 8:
+		box.push_back(pair<int, cv::Rect>(9, cv::Rect(567, 450, 276, 283)));
+		box.push_back(pair<int, cv::Rect>(12, cv::Rect(852, 125, 310, 296)));
+		box.push_back(pair<int, cv::Rect>(10, cv::Rect(660, 648, 274, 251)));
+		box.push_back(pair<int, cv::Rect>(11, cv::Rect(801, 486, 174, 301)));
+		box.push_back(pair<int, cv::Rect>(4, cv::Rect(247, 152, 367, 342)));
+		break;
+	default:
+		return -1;
+		break;
+	}
+	cv::imshow("image", image);
+	Mask m(image, box);
 
 	return 0;
 
