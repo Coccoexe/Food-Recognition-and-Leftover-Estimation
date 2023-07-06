@@ -7,13 +7,11 @@
 class Mask
 {
 public:
-	Mask(const cv::Mat i, const std::vector<std::pair<int, cv::Rect>> b);
 	Mask(const cv::Mat i);
 	~Mask();
 
 private:
 	const cv::Mat source_image;
-	const std::vector<std::pair<int, cv::Rect>> bounding_boxes;
 
 	cv::Mat saturationThresholding();
 	cv::Mat textureSegmentation();

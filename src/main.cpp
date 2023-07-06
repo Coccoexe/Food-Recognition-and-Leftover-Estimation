@@ -15,6 +15,7 @@
 #include <string>
 #include <vector>
 #include <opencv2/xfeatures2d.hpp>
+#include <opencv2/objdetect.hpp>
 
 using namespace std;
 
@@ -46,7 +47,7 @@ int main()
 	string output = "./output/";                                                                  // Output folder name
 
 	int tray = 1;                                                                                 // Tray number
-	cv::Mat image = cv::imread(dataset + "tray" + to_string(tray) + "/food_image.jpg");
+	cv::Mat image = cv::imread(dataset + "tray" + to_string(tray) + "/leftover2.jpg");
 	vector<pair<int, cv::Rect>> box;
 	switch (tray)
 	{
