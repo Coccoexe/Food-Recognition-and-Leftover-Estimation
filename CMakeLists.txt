@@ -19,7 +19,7 @@ find_package(OpenCV REQUIRED)
 include_directories(${OpenCV_INCLUDE_DIRS})
 
 # executables & libraries
-add_executable (${PROJECT_NAME} src/main.cpp "src/BoundingBox.cpp" "src/Mask.cpp" "src/Metrics.cpp")
+add_executable (${PROJECT_NAME} src/main.cpp "src/BoundingBox.cpp" "src/Mask.cpp" "src/Metrics.cpp" )
 target_link_libraries(${PROJECT_NAME} ${OpenCV_LIBS})
 
 # check

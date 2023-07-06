@@ -8,6 +8,7 @@ class Mask
 {
 public:
 	Mask(const cv::Mat i, const std::vector<std::pair<int, cv::Rect>> b);
+	Mask(const cv::Mat i);
 	~Mask();
 
 private:

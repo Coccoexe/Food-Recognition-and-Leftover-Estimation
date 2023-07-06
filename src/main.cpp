@@ -104,7 +104,8 @@ int main()
 		break;
 	}
 	cv::imshow("image", image);
-	Mask m(image, box);
+	//Mask m(image, box);
+	Mask m(image);
 
 	return 0;
 
