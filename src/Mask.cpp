@@ -1,9 +1,15 @@
 #include "Mask.hpp"
 #include <map>
+#include <opencv2/ximgproc/segmentation.hpp>
 
 Mask::Mask(const cv::Mat i, const std::vector<std::pair<int, cv::Rect>> b)
 	: source_image(i), bounding_boxes(b)
 {
+	cv::Mat txt = textureSegmentation();
+	cv::imshow("texture", txt);
+	cv::waitKey(0);
+	return;
+
 	// Gamma correction
 	cv::Mat gc_image;
 	cv::Mat lookUpTable(1, 256, CV_8U);
@@ -82,55 +88,30 @@ cv::Mat Mask::saturationThresholding()
 
 cv::Mat Mask::textureSegmentation()
 {
-	// Grayscale conversion
-	cv::Mat gray_image;
-	cv::cvtColor(source_image, gray_image, cv::COLOR_BGR2GRAY);
+	// LAB conversion
+	cv::Mat lab_image;
+	cv::cvtColor(source_image, lab_image, cv::COLOR_BGR2Lab);
 
-	// Entropy calculation
-	double pixel_entropy_value;
-	cv::Mat entropy;
-	const int HIST_DIM = 9;
-	const int HIST_OFFSET = (HIST_DIM - 1) / 2;
-	const cv::Point OFFSET_POINT = cv::Point(HIST_OFFSET, HIST_OFFSET);
-	bool stop = false;
-	cv::MatIterator_<float> it = entropy.begin<float>();
-	cv::Mat hist;
+	// Channels normalization
+	std::vector<cv::Mat> channels;
+	cv::split(lab_image, channels);
+	for (int i = 0; i < channels.size(); i++)
+		cv::normalize(channels[i], channels[i], 0, 255, cv::NORM_MINMAX);
 
-	// Initial histogram
-	int hist_size = 256;
-	float range[] = { 0, 256 };
-	const float* hist_range = { range };
-	cv::Mat initial_hist_mask = cv::Mat::ones(HIST_DIM, HIST_DIM, CV_8UC1);
-	cv::copyMakeBorder(initial_hist_mask, initial_hist_mask, 0, gray_image.rows - HIST_DIM, 0, gray_image.cols - HIST_DIM, cv::BORDER_CONSTANT, 0);
-	cv::calcHist(&gray_image, 1, 0, initial_hist_mask, hist, 1, &hist_size, &hist_range, true, false);
+	// Channels concatenation
+	cv::merge(channels, lab_image);
 
-	// Entropy calculation
-	int direction = 1;
-	cv::Point current_point(HIST_OFFSET, HIST_OFFSET);
-	pixel_entropy_value = 0;
-	cv::MatConstIterator_<float> hist_it;
-	for (hist_it = hist.begin<float>(); hist_it != hist.end<float>(); hist_it++)
-		if (*hist_it > 0)
-			pixel_entropy_value -= *hist_it * log2(*hist_it);
-	pixel_entropy_value /= 255;
-	*it = pixel_entropy_value;
-	cv::Point previous_point = current_point;
-	current_point.y++;
-	std::map<unsigned int, int> m;
+	// Float conversion
+	lab_image.convertTo(lab_image, CV_32FC3);
 
-	// Loop
-	while (!stop)
-	{
-		// Get current pointers
-		it = entropy.begin<float>() + (current_point - OFFSET_POINT).x * entropy.cols + (current_point - OFFSET_POINT).y;
+	// JSEG color-texture segmentation
+	cv::Ptr<cv::ximgproc::segmentation::SelectiveSearchSegmentation> jseg = cv::ximgproc::segmentation::createSelectiveSearchSegmentation();
+	jseg->setBaseImage(lab_image);
+	jseg->switchToSelectiveSearchFast();
+	std::vector<cv::Rect> regions;
+	jseg->process(regions);
 
-		// Calculate the histogram (update)
-		if (previous_point.y != current_point.y)
-		{
-			return entropy;
-		}
-	}
-	return entropy;
+	return source_image;
 }
 
 Mask::~Mask(){}
