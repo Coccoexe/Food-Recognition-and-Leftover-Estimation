@@ -15,4 +15,5 @@ private:
 
 	cv::Mat saturationThresholding();
 	cv::Mat textureSegmentation();
+	void cleanMask(const cv::Mat& input, cv::Mat& output);
 };

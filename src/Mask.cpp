@@ -3,37 +3,11 @@
 #include <opencv2/imgproc.hpp>
 #include <opencv2/ximgproc/segmentation.hpp>
 
+#define DEBUG 1
+
 Mask::Mask(const cv::Mat i)
 	: source_image(i)
 {
-	// Declarations
-	const unsigned int AREA_THRESHOLD_1 = 4000;
-	const unsigned int AREA_THRESHOLD_2 = 8000;
-	const unsigned int CONTOURS_DISTANCE_THRESHOLD = 45;
-	const unsigned int HOUGH_CANNY_THRESHOLD = 100;
-	const unsigned int HOUGH_CIRCLE_ROUNDNESS = 50;
-	const unsigned int HOUGH_MAX_RADIUS = 350;
-	const unsigned int HOUGH_MIN_RADIUS = 175; //200
-	typedef std::vector<cv::Point> Contour;
-	typedef std::vector<Contour> Contours;
-	auto filterAreas = [](const cv::Mat& input, cv::Mat& output, const unsigned int threshold) -> void
-	{
-		Contours c;
-
-		cv::findContours(input.clone(), c, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
-		for (int i = 0; i < c.size(); i++)
-			if (cv::contourArea(c[i]) > threshold)
-				cv::drawContours(output, c, i, 255, -1);
-	};
-	auto fillHoles = [](cv::Mat& input) -> void
-	{
-		cv::Mat ff = input.clone();
-		cv::floodFill(ff, cv::Point(0, 0), cv::Scalar(255));
-		cv::Mat inversed_ff;
-		cv::bitwise_not(ff, inversed_ff);
-		input = (input | inversed_ff);
-	};
-
 	// Saturation thresholding
 	cv::Mat saturation = saturationThresholding();
 	cv::imshow("saturation", saturation);
@@ -45,76 +19,19 @@ Mask::Mask(const cv::Mat i)
 	//cv::waitKey(0);
 
 	// Combine the two masks
-	cv::Mat m = cv::Mat::zeros(source_image.size(), CV_8UC1);
-	cv::bitwise_and(saturation, texture, m);
-	cv::Mat mask = cv::Mat::zeros(m.size(), CV_8UC1);
-	filterAreas(m, mask, AREA_THRESHOLD_1);
-	cv::morphologyEx(mask, mask, cv::MORPH_CLOSE, cv::getStructuringElement(cv::MORPH_RECT, cv::Size(9, 9)));
-	fillHoles(mask);
-	cv::imshow("mask", mask);
-	//cv::waitKey(0);
+	cv::Mat mask = cv::Mat::zeros(source_image.size(), CV_8UC1);
+	cv::bitwise_and(saturation, texture, mask);
 
-	// Keep stuff outside plates
-	cv::Mat gs_image;
-	cv::cvtColor(source_image, gs_image, cv::COLOR_BGR2GRAY);
-	cv::GaussianBlur(gs_image, gs_image, cv::Size(9, 9), 2, 2);
-	std::vector<cv::Vec3f> circles;
-	cv::HoughCircles(gs_image, circles, cv::HOUGH_GRADIENT, 1, gs_image.rows / 16, HOUGH_CANNY_THRESHOLD, HOUGH_CIRCLE_ROUNDNESS, HOUGH_MIN_RADIUS, HOUGH_MAX_RADIUS);
+	// Clean the mask
+	cv::Mat clean_mask;
+	cleanMask(mask, clean_mask);
 
-	cv::Mat dishes = source_image.clone();
-	for (int i = 0; i < circles.size(); i++)
-		cv::circle(dishes, cv::Point(circles[i][0], circles[i][1]), circles[i][2], cv::Scalar(0, 0, 255), 3);
-	cv::imshow("dishes", dishes);
-	//cv::waitKey(0);
-
-	cv::Mat side_mask = mask.clone();
-	for (int i = 0; i < circles.size(); i++)
-		cv::circle(side_mask, cv::Point(circles[i][0], circles[i][1]), circles[i][2], 0, -1);
-	
-	// Find contours outside plates
-	Contours contours;
-	cv::findContours(side_mask.clone(), contours, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
-
-	// Link close contours based on CONTOURS_DISTANCE_THRESHOLD
-	for (int i = 0; i < contours.size(); i++)
-		for (int j = i + 1; j < contours.size(); j++)
-			for (int k = 0; k < contours[i].size(); k++)
-				for (int l = 0; l < contours[j].size(); l++)
-					if (abs(contours[i][k].x - contours[j][l].x) < CONTOURS_DISTANCE_THRESHOLD && abs(contours[i][k].y - contours[j][l].y) < CONTOURS_DISTANCE_THRESHOLD)
-						cv::line(side_mask, contours[i][k], contours[j][l], 255, 1);
-	cv::morphologyEx(side_mask, side_mask, cv::MORPH_CLOSE, cv::getStructuringElement(cv::MORPH_RECT, cv::Size(3, 3)));
-	filterAreas(side_mask, side_mask, AREA_THRESHOLD_2);
-	//cv::imshow("side_mask", side_mask);
-						
-	// Find contours again
-	contours.clear();
-	cv::findContours(side_mask.clone(), contours, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
-	if (contours.size() > 1)
-	{	// We have more than one contour, find the largest one
-		int largest_contour_index = 0;
-		for (int i = 0; i < contours.size(); i++)
-			if (cv::contourArea(contours[i]) >= cv::contourArea(contours[largest_contour_index]))
-				largest_contour_index = i;
-		// Keep only the largest contour
-		cv::Mat single_side_mask = cv::Mat::zeros(side_mask.size(), CV_8UC1);
-		cv::drawContours(single_side_mask, contours, largest_contour_index, 255, -1);
-		// Back to the mask
-		cv::imshow("single_side_mask", single_side_mask);
-		cv::imshow("side_mask", side_mask);
-		cv::imshow("mask", mask);
-		//cv::waitKey(0);
-		mask = (mask - (side_mask - single_side_mask)) + single_side_mask;
-	}
-	else
-	{	// We have only one contour, keep it
-		//cv::imshow("side_mask", side_mask);
-		//cv::imshow("mask", mask);
-		//cv::waitKey(0);
-		mask = mask + side_mask;
-	}
+	// Find bounding boxes
+	// TODO: implement stuff below in a separate function
 	
 	// Find all contours
-	cv::findContours(mask.clone(), contours, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
+	std::vector<std::vector<cv::Point>> contours;
+	cv::findContours(clean_mask.clone(), contours, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
 
 	// Find bounding boxes
 	std::vector<cv::Rect> bounding_boxes;
@@ -130,10 +47,6 @@ Mask::Mask(const cv::Mat i)
 
 }
 
-/**
- * @brief Saturation thresholding function, to be combined with texture segmentation
- * @return cv::Mat Mask of the saturation thresholded image
- */
 cv::Mat Mask::saturationThresholding()
 {
 	// Variables
@@ -402,6 +315,114 @@ cv::Mat Mask::textureSegmentation()
 	cv::threshold(converted_entropy_matrix, converted_entropy_matrix, TEXTURE_EDGE_THRESHOLD, 255, cv::THRESH_BINARY);
 
 	return converted_entropy_matrix;
+}
+
+void Mask::cleanMask(const cv::Mat& input, cv::Mat& output)
+{
+	// TODO: Implement:
+	// 1. Separate circles for plates, bowls and yoghurt
+	// 2. Remove squares/rectangles (tickets, smartphones, etc)
+
+	// Declarations
+	const unsigned int AREA_THRESHOLD_1 = 4000;          // Initial, smaller, non-connected components to keep (removes small noise)
+	const unsigned int AREA_THRESHOLD_2 = 8000;          // Final, larger, connected components to keep (keeps bread)
+	const unsigned int CONTOURS_DISTANCE_THRESHOLD = 45; // Distance between two contours to be considered the same (ie bread needs to be connected)
+	const unsigned int HOUGH_CANNY_THRESHOLD = 100;      // Canny threshold for Hough transform for finding plates and bowls
+	const unsigned int HOUGH_CIRCLE_ROUNDNESS = 50;      // Roundness of circles to be found by Hough transform
+	const unsigned int HOUGH_MAX_RADIUS = 350;           // Maximum radius of circles to be found by Hough transform
+	const unsigned int HOUGH_MIN_RADIUS = 175;           // Minimum radius of circles to be found by Hough transform
+	auto filterAreas = [](const cv::Mat& input, cv::Mat& output, const unsigned int threshold) -> void
+	{
+		std::vector<std::vector<cv::Point>> c;
+
+		cv::findContours(input.clone(), c, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
+		for (int i = 0; i < c.size(); i++)
+			if (cv::contourArea(c[i]) > threshold)
+				cv::drawContours(output, c, i, 255, -1);
+	};
+	auto fillHoles = [](cv::Mat& input) -> void
+	{
+		cv::Mat ff = input.clone();
+		cv::floodFill(ff, cv::Point(0, 0), cv::Scalar(255));
+		cv::Mat inversed_ff;
+		cv::bitwise_not(ff, inversed_ff);
+		input = (input | inversed_ff);
+	};
+
+	// Initial cleaning
+	output = cv::Mat::zeros(input.size(), CV_8UC1);
+	filterAreas(input, output, AREA_THRESHOLD_1);
+	cv::morphologyEx(output, output, cv::MORPH_CLOSE, cv::getStructuringElement(cv::MORPH_RECT, cv::Size(9, 9)));
+	fillHoles(output);
+	cv::imshow("initial cleaning", output);
+
+	// Plate detection
+	cv::Mat gs_image;
+	cv::cvtColor(source_image, gs_image, cv::COLOR_BGR2GRAY);
+	cv::GaussianBlur(gs_image, gs_image, cv::Size(9, 9), 2, 2);
+	std::vector<cv::Vec3f> circles;
+	cv::HoughCircles(gs_image, circles, cv::HOUGH_GRADIENT, 1, gs_image.rows / 16, HOUGH_CANNY_THRESHOLD, HOUGH_CIRCLE_ROUNDNESS, HOUGH_MIN_RADIUS, HOUGH_MAX_RADIUS);
+	if (DEBUG)
+	{	// Draw plates
+		cv::Mat dishes = source_image.clone();
+		for (int i = 0; i < circles.size(); i++)
+			cv::circle(dishes, cv::Point(circles[i][0], circles[i][1]), circles[i][2], cv::Scalar(0, 0, 255), 3);
+		cv::imshow("dishes", dishes);
+	}
+	
+	// Create external = image - plates
+	cv::Mat external = output.clone();
+	for (int i = 0; i < circles.size(); i++)
+		cv::circle(external, cv::Point(circles[i][0], circles[i][1]), circles[i][2], 0, -1);
+
+	// Find external contours
+	std::vector<std::vector<cv::Point>> contours;
+	cv::findContours(external.clone(), contours, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
+
+	// Link close contours based on CONTOURS_DISTANCE_THRESHOLD
+	for (int i = 0; i < contours.size(); i++)
+		for (int j = i + 1; j < contours.size(); j++)
+			for (int k = 0; k < contours[i].size(); k++)
+				for (int l = 0; l < contours[j].size(); l++)
+					if (abs(contours[i][k].x - contours[j][l].x) < CONTOURS_DISTANCE_THRESHOLD && abs(contours[i][k].y - contours[j][l].y) < CONTOURS_DISTANCE_THRESHOLD)
+						cv::line(external, contours[i][k], contours[j][l], 255, 1);
+
+	// Close operation to properly link contours
+	cv::morphologyEx(external, external, cv::MORPH_CLOSE, cv::getStructuringElement(cv::MORPH_RECT, cv::Size(3, 3)));
+
+	// Remove stuff that is not bread (hopefully)
+	filterAreas(external, external, AREA_THRESHOLD_2);
+	if (DEBUG) cv::imshow("side_mask", external);
+
+	// Find contours again, now after linking close ones
+	contours.clear();
+	cv::findContours(external.clone(), contours, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
+	if (contours.size() > 1)
+	{	// More than one contour, find and keep the largest one (hopefully bread)
+		int largest_contour_index = 0;
+		for (int i = 0; i < contours.size(); i++)
+			if (cv::contourArea(contours[i]) >= cv::contourArea(contours[largest_contour_index]))
+				largest_contour_index = i;
+		cv::Mat single = cv::Mat::zeros(external.size(), CV_8UC1);
+		cv::drawContours(single, contours, largest_contour_index, 255, -1);
+		if (DEBUG)
+		{
+			cv::imshow("single contour", single);
+			cv::imshow("external", external);
+			cv::imshow("base mask", output);
+		}
+		output = (output - (external - single)) + single;
+	}
+	else
+	{	// Only one contour, keep it
+		if (DEBUG)
+		{
+			cv::imshow("side_mask", external);
+			cv::imshow("mask", output);
+			cv::waitKey(0);
+		}
+		output = output + external;
+	}
 }
 
 Mask::~Mask(){}
