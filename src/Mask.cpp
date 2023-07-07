@@ -7,10 +7,13 @@ Mask::Mask(const cv::Mat i)
 	: source_image(i)
 {
 	// Declarations
-	const unsigned int AREA_THRESHOLD = 2000;
-	const unsigned int CONTOURS_DISTANCE_THRESHOLD = 50;
-	const unsigned int CANNY_THRESHOLD = 175;
-	const unsigned int CIRCLE_ROUNDNESS = 70;
+	const unsigned int AREA_THRESHOLD_1 = 4000;
+	const unsigned int AREA_THRESHOLD_2 = 8000;
+	const unsigned int CONTOURS_DISTANCE_THRESHOLD = 45;
+	const unsigned int HOUGH_CANNY_THRESHOLD = 100;
+	const unsigned int HOUGH_CIRCLE_ROUNDNESS = 50;
+	const unsigned int HOUGH_MAX_RADIUS = 350;
+	const unsigned int HOUGH_MIN_RADIUS = 175; //200
 	typedef std::vector<cv::Point> Contour;
 	typedef std::vector<Contour> Contours;
 	auto filterAreas = [](const cv::Mat& input, cv::Mat& output, const unsigned int threshold) -> void
@@ -34,36 +37,35 @@ Mask::Mask(const cv::Mat i)
 	// Saturation thresholding
 	cv::Mat saturation = saturationThresholding();
 	cv::imshow("saturation", saturation);
-	cv::waitKey(0);
+	//cv::waitKey(0);
 
 	// Texture segmentation
 	cv::Mat texture = textureSegmentation();
 	cv::imshow("texture", texture);
-	cv::waitKey(0);
+	//cv::waitKey(0);
 
 	// Combine the two masks
 	cv::Mat m = cv::Mat::zeros(source_image.size(), CV_8UC1);
 	cv::bitwise_and(saturation, texture, m);
 	cv::Mat mask = cv::Mat::zeros(m.size(), CV_8UC1);
-	filterAreas(m, mask, AREA_THRESHOLD);
+	filterAreas(m, mask, AREA_THRESHOLD_1);
 	cv::morphologyEx(mask, mask, cv::MORPH_CLOSE, cv::getStructuringElement(cv::MORPH_RECT, cv::Size(9, 9)));
 	fillHoles(mask);
 	cv::imshow("mask", mask);
-	cv::waitKey(0);
+	//cv::waitKey(0);
 
 	// Keep stuff outside plates
 	cv::Mat gs_image;
 	cv::cvtColor(source_image, gs_image, cv::COLOR_BGR2GRAY);
 	cv::GaussianBlur(gs_image, gs_image, cv::Size(9, 9), 2, 2);
 	std::vector<cv::Vec3f> circles;
-	cv::HoughCircles(gs_image, circles, cv::HOUGH_GRADIENT, 1, gs_image.rows / 16, CANNY_THRESHOLD, CIRCLE_ROUNDNESS, 0, 0);
+	cv::HoughCircles(gs_image, circles, cv::HOUGH_GRADIENT, 1, gs_image.rows / 16, HOUGH_CANNY_THRESHOLD, HOUGH_CIRCLE_ROUNDNESS, HOUGH_MIN_RADIUS, HOUGH_MAX_RADIUS);
 
 	cv::Mat dishes = source_image.clone();
 	for (int i = 0; i < circles.size(); i++)
 		cv::circle(dishes, cv::Point(circles[i][0], circles[i][1]), circles[i][2], cv::Scalar(0, 0, 255), 3);
 	cv::imshow("dishes", dishes);
-	cv::waitKey(0);
-
+	//cv::waitKey(0);
 
 	cv::Mat side_mask = mask.clone();
 	for (int i = 0; i < circles.size(); i++)
@@ -80,6 +82,9 @@ Mask::Mask(const cv::Mat i)
 				for (int l = 0; l < contours[j].size(); l++)
 					if (abs(contours[i][k].x - contours[j][l].x) < CONTOURS_DISTANCE_THRESHOLD && abs(contours[i][k].y - contours[j][l].y) < CONTOURS_DISTANCE_THRESHOLD)
 						cv::line(side_mask, contours[i][k], contours[j][l], 255, 1);
+	cv::morphologyEx(side_mask, side_mask, cv::MORPH_CLOSE, cv::getStructuringElement(cv::MORPH_RECT, cv::Size(3, 3)));
+	filterAreas(side_mask, side_mask, AREA_THRESHOLD_2);
+	//cv::imshow("side_mask", side_mask);
 						
 	// Find contours again
 	contours.clear();
@@ -94,11 +99,11 @@ Mask::Mask(const cv::Mat i)
 		cv::Mat single_side_mask = cv::Mat::zeros(side_mask.size(), CV_8UC1);
 		cv::drawContours(single_side_mask, contours, largest_contour_index, 255, -1);
 		// Back to the mask
-		//cv::imshow("single_side_mask", single_side_mask);
-		//cv::imshow("side_mask", side_mask);
-		//cv::imshow("mask", mask);
+		cv::imshow("single_side_mask", single_side_mask);
+		cv::imshow("side_mask", side_mask);
+		cv::imshow("mask", mask);
 		//cv::waitKey(0);
-		mask = mask - (side_mask - single_side_mask);
+		mask = (mask - (side_mask - single_side_mask)) + single_side_mask;
 	}
 	else
 	{	// We have only one contour, keep it

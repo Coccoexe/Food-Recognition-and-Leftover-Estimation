@@ -46,6 +46,43 @@ int main()
 	string matching = "./matching/";                                                              // Matching folder name
 	string output = "./output/";                                                                  // Output folder name
 
+	Mask m_10(cv::imread(dataset + "tray1/food_image.jpg"));                                      // Mask object for tray 1
+	Mask m_11(cv::imread(dataset + "tray1/leftover1.jpg"));                                       // Mask object for tray 1
+	Mask m_12(cv::imread(dataset + "tray1/leftover2.jpg"));                                       // Mask object for tray 1
+	Mask m_13(cv::imread(dataset + "tray1/leftover3.jpg"));                                       // Mask object for tray 1
+	Mask m_20(cv::imread(dataset + "tray2/food_image.jpg"));                                      // Mask object for tray 2
+	Mask m_21(cv::imread(dataset + "tray2/leftover1.jpg"));                                       // Mask object for tray 2
+	Mask m_22(cv::imread(dataset + "tray2/leftover2.jpg"));                                       // Mask object for tray 2
+	Mask m_23(cv::imread(dataset + "tray2/leftover3.jpg"));                                       // Mask object for tray 2
+	Mask m_30(cv::imread(dataset + "tray3/food_image.jpg"));                                      // Mask object for tray 3
+	Mask m_31(cv::imread(dataset + "tray3/leftover1.jpg"));                                       // Mask object for tray 3
+	Mask m_32(cv::imread(dataset + "tray3/leftover2.jpg"));                                       // Mask object for tray 3
+	Mask m_33(cv::imread(dataset + "tray3/leftover3.jpg"));                                       // Mask object for tray 3
+	Mask m_40(cv::imread(dataset + "tray4/food_image.jpg"));                                      // Mask object for tray 4
+	Mask m_41(cv::imread(dataset + "tray4/leftover1.jpg"));                                       // Mask object for tray 4
+	Mask m_42(cv::imread(dataset + "tray4/leftover2.jpg"));                                       // Mask object for tray 4
+	Mask m_43(cv::imread(dataset + "tray4/leftover3.jpg"));                                       // Mask object for tray 4
+	Mask m_50(cv::imread(dataset + "tray5/food_image.jpg"));                                      // Mask object for tray 5
+	Mask m_51(cv::imread(dataset + "tray5/leftover1.jpg"));                                       // Mask object for tray 5
+	Mask m_52(cv::imread(dataset + "tray5/leftover2.jpg"));                                       // Mask object for tray 5
+	Mask m_53(cv::imread(dataset + "tray5/leftover3.jpg"));                                       // Mask object for tray 5
+	Mask m_60(cv::imread(dataset + "tray6/food_image.jpg"));                                      // Mask object for tray 6
+	Mask m_61(cv::imread(dataset + "tray6/leftover1.jpg"));                                       // Mask object for tray 6
+	Mask m_62(cv::imread(dataset + "tray6/leftover2.jpg"));                                       // Mask object for tray 6
+	Mask m_63(cv::imread(dataset + "tray6/leftover3.jpg"));                                       // Mask object for tray 6
+	Mask m_70(cv::imread(dataset + "tray7/food_image.jpg"));                                      // Mask object for tray 7
+	Mask m_71(cv::imread(dataset + "tray7/leftover1.jpg"));                                       // Mask object for tray 7
+	Mask m_72(cv::imread(dataset + "tray7/leftover2.jpg"));                                       // Mask object for tray 7
+	Mask m_73(cv::imread(dataset + "tray7/leftover3.jpg"));                                       // Mask object for tray 7
+	Mask m_80(cv::imread(dataset + "tray8/food_image.jpg"));                                      // Mask object for tray 8
+	Mask m_81(cv::imread(dataset + "tray8/leftover1.jpg"));                                       // Mask object for tray 8
+	Mask m_82(cv::imread(dataset + "tray8/leftover2.jpg"));                                       // Mask object for tray 8
+	Mask m_83(cv::imread(dataset + "tray8/leftover3.jpg"));                                       // Mask object for tray 8
+
+
+
+	return 0;
+
 	int tray = 1;                                                                                 // Tray number
 	cv::Mat image = cv::imread(dataset + "tray" + to_string(tray) + "/food_image.jpg");
 	vector<pair<int, cv::Rect>> box;
