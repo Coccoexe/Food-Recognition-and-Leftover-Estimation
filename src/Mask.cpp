@@ -329,8 +329,10 @@ void Mask::cleanMask(const cv::Mat& input, cv::Mat& output)
 	const unsigned int CONTOURS_DISTANCE_THRESHOLD = 45; // Distance between two contours to be considered the same (ie bread needs to be connected)
 	const unsigned int HOUGH_CANNY_THRESHOLD = 100;      // Canny threshold for Hough transform for finding plates and bowls
 	const unsigned int HOUGH_CIRCLE_ROUNDNESS = 50;      // Roundness of circles to be found by Hough transform
-	const unsigned int HOUGH_MAX_RADIUS = 350;           // Maximum radius of circles to be found by Hough transform
-	const unsigned int HOUGH_MIN_RADIUS = 175;           // Minimum radius of circles to be found by Hough transform
+	const unsigned int PLATES_HOUGH_MAX_RADIUS = 350;    // Maximum radius of circles to be found by Hough transform (plates)
+	const unsigned int PLATES_HOUGH_MIN_RADIUS = 250;    // Minimum radius of circles to be found by Hough transform (plates)
+	const unsigned int BOWLS_HOUGH_MAX_RADIUS = 210;     // Maximum radius of circles to be found by Hough transform (bowls)
+	const unsigned int BOWLS_HOUGH_MIN_RADIUS = 175;     // Minimum radius of circles to be found by Hough transform (bowls)
 	auto filterAreas = [](const cv::Mat& input, cv::Mat& output, const unsigned int threshold) -> void
 	{
 		std::vector<std::vector<cv::Point>> c;
@@ -356,25 +358,40 @@ void Mask::cleanMask(const cv::Mat& input, cv::Mat& output)
 	fillHoles(output);
 	cv::imshow("initial cleaning", output);
 
-	// Plate detection
+	// Detecting stuff
 	cv::Mat gs_image;
 	cv::cvtColor(source_image, gs_image, cv::COLOR_BGR2GRAY);
 	cv::GaussianBlur(gs_image, gs_image, cv::Size(9, 9), 2, 2);
-	std::vector<cv::Vec3f> circles;
-	cv::HoughCircles(gs_image, circles, cv::HOUGH_GRADIENT, 1, gs_image.rows / 16, HOUGH_CANNY_THRESHOLD, HOUGH_CIRCLE_ROUNDNESS, HOUGH_MIN_RADIUS, HOUGH_MAX_RADIUS);
+
+	// Plate detection
+	std::vector<cv::Vec3f> plates;
+	cv::HoughCircles(gs_image, plates, cv::HOUGH_GRADIENT, 1, gs_image.rows / 16, HOUGH_CANNY_THRESHOLD, HOUGH_CIRCLE_ROUNDNESS, PLATES_HOUGH_MIN_RADIUS, PLATES_HOUGH_MAX_RADIUS);
 	if (DEBUG)
 	{	// Draw plates
 		cv::Mat dishes = source_image.clone();
-		for (int i = 0; i < circles.size(); i++)
-			cv::circle(dishes, cv::Point(circles[i][0], circles[i][1]), circles[i][2], cv::Scalar(0, 0, 255), 3);
+		for (int i = 0; i < plates.size(); i++)
+			cv::circle(dishes, cv::Point(plates[i][0], plates[i][1]), plates[i][2], cv::Scalar(0, 0, 255), 3);
 		cv::imshow("dishes", dishes);
 	}
-	
-	// Create external = image - plates
-	cv::Mat external = output.clone();
-	for (int i = 0; i < circles.size(); i++)
-		cv::circle(external, cv::Point(circles[i][0], circles[i][1]), circles[i][2], 0, -1);
 
+	// Salad bowl detection
+	std::vector<cv::Vec3f> bowls;
+	cv::HoughCircles(gs_image, bowls, cv::HOUGH_GRADIENT, 1, gs_image.rows / 16, HOUGH_CANNY_THRESHOLD, HOUGH_CIRCLE_ROUNDNESS, BOWLS_HOUGH_MIN_RADIUS, BOWLS_HOUGH_MAX_RADIUS);
+	if (DEBUG)
+	{	// Draw bowls
+		cv::Mat salad = source_image.clone();
+		for (int i = 0; i < bowls.size(); i++)
+			cv::circle(salad, cv::Point(bowls[i][0], bowls[i][1]), bowls[i][2], cv::Scalar(0, 0, 255), 3);
+		cv::imshow("salad", salad);
+	}
+
+	// Create external = image - (bowls + plates)
+	cv::Mat external = output.clone();
+	for (int i = 0; i < plates.size(); i++)
+		cv::circle(external, cv::Point(plates[i][0], plates[i][1]), plates[i][2], 0, -1);
+	for (int i = 0; i < bowls.size(); i++)
+		cv::circle(external, cv::Point(bowls[i][0], bowls[i][1]), bowls[i][2], 0, -1);
+	
 	// Find external contours
 	std::vector<std::vector<cv::Point>> contours;
 	cv::findContours(external.clone(), contours, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
