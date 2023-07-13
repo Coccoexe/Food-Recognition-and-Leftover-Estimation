@@ -17,10 +17,25 @@
 #include <opencv2/xfeatures2d.hpp>
 #include <opencv2/objdetect.hpp>
 
+#include <opencv2/ximgproc.hpp>
+
 using namespace std;
 
 int main()
 {
+	cv::Mat imaaasss = cv::imread("./Food_leftover_dataset/tray1/food_image.jpg");
+	cv::Mat imgs;
+	cv::cvtColor(imaaasss, imgs, cv::COLOR_BGR2GRAY);
+
+	// niBlackThreshold
+	cv::Mat codroipozzz;
+	cv::ximgproc::niBlackThreshold(imgs, codroipozzz, 255, cv::THRESH_TOZERO, 5, 0.1);
+	cv::imshow("codroipo", codroipozzz);
+	cv::waitKey(0);
+
+
+
+	return 0;
 	// 1. recognize and localize all the food items in the tray images, considering the food categories detailed in the dataset
 	// 2. segment each food item in the tray image to compute the corresponding food quantity (i.e., amount of pixels)
 	// 3. compare the “before meal” and “after meal” images to find which food among the initial ones was eaten and which was not. The leftovers quantity is then estimated as the difference in the number of pixels of the food item in the pair of images.
