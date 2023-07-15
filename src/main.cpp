@@ -18,8 +18,27 @@
 #include <opencv2/objdetect.hpp>
 
 #include <opencv2/ximgproc.hpp>
+#include <opencv2/intensity_transform.hpp>
 
 using namespace std;
+
+vector<cv::Vec3b> colors_mouse;
+
+void onMouse(int event, int x, int y, int f, void* userdata)
+{
+	if (event == cv::EVENT_LBUTTONDOWN)
+	{
+		//get image
+		cv::Mat img = *(cv::Mat*)userdata;
+
+		//get pixel color
+		cv::Vec3b color = img.at<cv::Vec3b>(y, x);
+		colors_mouse.push_back(color);
+
+		//print pixel color
+		cout << "Pixel BGR value: " << color << endl;
+	}
+}
 
 cv::Mat process(cv::Mat msk1, cv::Mat imaaasss) {
 	auto filterAreas = [](const cv::Mat& input, cv::Mat& output, const unsigned int threshold) -> void
@@ -62,10 +81,92 @@ cv::Mat process(cv::Mat msk1, cv::Mat imaaasss) {
 	//detected
 	cv::Mat original;
 	cv::bitwise_and(imaaasss, imaaasss, original, a);
-	cv::imshow("original", original);
-	cv::waitKey(0);
+	//cv::imshow("original", original);
+	//cv::waitKey(0);
 
 	return a;
+}
+
+int main111()
+{
+	cv::Mat img = cv::imread("./Food_leftover_dataset/tray1/food_image.jpg");
+	cv::Mat mask = cv::imread("./Food_leftover_dataset/tray1/masks/food_image_mask.png");
+
+	for (int y = 0; y < mask.rows; y++)
+		for (int x = 0; x < mask.cols; x++)
+			mask.at<uint8_t>(y, x) *= 10;
+	cv::imshow("mask", mask);
+	cv::waitKey(0);
+			
+
+	//gamma transform
+	cv::Mat gamma;
+	cv::Mat lookUpTable(1, 256, CV_8U);
+	uchar* p = lookUpTable.ptr();
+	double gamma_ = 0.5;
+	for (int i = 0; i < 256; ++i)
+		p[i] = cv::saturate_cast<uchar>(pow(i / 255.0, gamma_) * 255.0);
+	cv::LUT(img, lookUpTable, gamma);
+	cv::imshow("gamma", gamma);
+	cv::waitKey(0);
+
+	//image to hsv
+	cv::Mat hsv;
+	cv::cvtColor(gamma, hsv, cv::COLOR_BGR2HSV);
+
+	//enhance saturation
+	cv::Mat hsv_enhanced;
+	vector<cv::Mat> hsv_channels;
+	cv::split(hsv, hsv_channels);
+	cv::equalizeHist(hsv_channels[1], hsv_channels[1]);
+	//hsv_channels[1] *= double(saturation)/10.0;
+	cv::merge(hsv_channels, hsv_enhanced);
+	cv::cvtColor(hsv_enhanced, hsv_enhanced, cv::COLOR_HSV2BGR);
+
+	for (int i = 1; i < 14; i++)
+	{
+		vector<int> b, g, r;
+		//if in mask there is a pixel with value i, add its repcective color to the vector
+		for (int y = 0; y < mask.rows; y++)
+			for (int x = 0; x < mask.cols; x++)
+				if (mask.at<uchar>(y, x) == i)
+				{
+					b.push_back(hsv_enhanced.at<cv::Vec3b>(y, x)[0]);
+					g.push_back(hsv_enhanced.at<cv::Vec3b>(y, x)[1]);
+					r.push_back(hsv_enhanced.at<cv::Vec3b>(y, x)[2]);
+				}
+		//calculate the mean color
+		int sum = 0, mean_b = 0, mean_g = 0, mean_r = 0;
+		if (b.size() > 0)
+		{
+			for (int j = 0; j < b.size(); j++)
+				sum += b[j];
+			mean_b = sum / b.size();
+		}
+		sum = 0;
+		if (g.size() > 0)
+		{
+			for (int j = 0; j < g.size(); j++)
+				sum += g[j];
+			mean_g = sum / g.size();
+		}
+		sum = 0;
+		if (r.size() > 0)
+		{
+			for (int j = 0; j < r.size(); j++)
+				sum += r[j];
+			mean_r = sum / r.size();
+		}
+
+		//print the mean color
+		std::cout << "Mean color for class " << i << ": " << mean_b << " " << mean_g << " " << mean_r << endl;
+
+
+	}
+	cv::imshow("img", img);
+	cv::imshow("mask", mask);
+	cv::waitKey(0);
+	return 0;
 }
 
 int main()
@@ -90,113 +191,193 @@ int main()
 		input = (input | inversed_ff);
 	};
 
-	cv::Mat imaaasss = cv::imread("./Food_leftover_dataset/tray4/food_image.jpg");
-	cv::Mat imgs;
-	cv::cvtColor(imaaasss, imgs, cv::COLOR_BGR2GRAY);
+	const bool DEBUG = false;
 
-	// niBlackThreshold
-	//cv::Mat codroipozzz;
-	//cv::ximgproc::niBlackThreshold(imgs, codroipozzz, 255, cv::THRESH_TOZERO, 5, 0.1);
-	//cv::imshow("codroipo", codroipozzz);
-	//cv::waitKey(0);
+	string output = "C:\\Users\\alessio\\Desktop\\output\\";
+	string input = "./Food_leftover_dataset/";
+	cv::Mat img;
+	string name,outname;
 
-	//gamma transform
-	cv::Mat gamma;
-	cv::Mat lookUpTable(1, 256, CV_8U);
-	uchar* p = lookUpTable.ptr();
-	double gamma_ = 0.5;
-	for (int i = 0; i < 256; ++i)
-		p[i] = cv::saturate_cast<uchar>(pow(i / 255.0, gamma_) * 255.0);
-	cv::LUT(imaaasss, lookUpTable, gamma);
-	cv::imshow("gamma", gamma);
-	cv::waitKey(0);
-
-	//image to hsv
-	cv::Mat hsv;
-	cv::cvtColor(imaaasss, hsv, cv::COLOR_BGR2HSV);
-	
-	int rMin = 0;
-	int rMax = 255;
-	int gMin = 0;
-	int gMax = 255;
-	int bMin = 0;
-	int bMax = 255;
-	int saturation = 1;
-	cv::Mat filtered;
-
-	//trackbar for rbg values
-	cv::namedWindow("trackbar");
-	cv::createTrackbar("rMin", "trackbar", 0, 255);
-	cv::createTrackbar("rMax", "trackbar", 0, 255);
-	cv::createTrackbar("gMin", "trackbar", 0, 255);
-	cv::createTrackbar("gMax", "trackbar", 0, 255);
-	cv::createTrackbar("bMin", "trackbar", 0, 255);
-	cv::createTrackbar("bMax", "trackbar", 0, 255);
-	cv::createTrackbar("saturation", "trackbar", 0, 100);
-
-	//loop for trackbar
-	while (true)
+	for (int k = 1; k < 9; k++)
 	{
+		for (int l = 0; l < 4; l++)
+		{
+			switch (l)
+			{
+			case 0:
+				name = ("tray" + to_string(k) + "\\food_image.jpg");
+				outname = to_string(k)+"_foodImage";
+				break;
+			case 1:
+				name = ("tray" + to_string(k) + "\\leftover1.jpg");
+				outname = to_string(k) + "_leftover1";
+				break;
+			case 2:
+				name = ("tray" + to_string(k) + "\\leftover2.jpg");
+				outname = to_string(k) + "_leftover2";
+				break;
+			case 3:
+				name = ("tray" + to_string(k) + "\\leftover3.jpg");
+				outname = to_string(k) + "_leftover3";
+				break;
+			}
 
-		//enhance saturation
-		cv::Mat hsv_enhanced;
-		vector<cv::Mat> hsv_channels;
-		cv::split(hsv, hsv_channels);
-		//cv::equalizeHist(hsv_channels[1], hsv_channels[1]);
-		//hsv_channels[1] *= double(saturation)/10.0;
-		cv::merge(hsv_channels, hsv_enhanced);
-		cv::cvtColor(hsv_enhanced, hsv_enhanced, cv::COLOR_HSV2BGR);
+			cout << "Processing" << name << endl;
 
-		cv::inRange(hsv_enhanced, cv::Scalar(rMin, gMin, bMin), cv::Scalar(rMax, gMax, bMax), filtered);
-		cv::imshow("filtered", filtered);
+			img = cv::imread(input + name);
 
-		cv::Mat original;
-		cv::bitwise_and(imaaasss, imaaasss, original, filtered);
-		
-		cv::imshow("original", original);
+			//gamma transform
+			cv::Mat gamma;
+			cv::Mat lookUpTable(1, 256, CV_8U);
+			uchar* p = lookUpTable.ptr();
+			double gamma_ = 0.5;
+			for (int i = 0; i < 256; ++i)
+				p[i] = cv::saturate_cast<uchar>(pow(i / 255.0, gamma_) * 255.0);
+			cv::LUT(img, lookUpTable, gamma);
+			//cv::imshow("gamma", gamma);
+			//cv::waitKey(0);
 
-		if (cv::waitKey(1) == 27)
-			break;
+			//image to hsv
+			cv::Mat hsv;
+			cv::cvtColor(gamma, hsv, cv::COLOR_BGR2HSV);
 
-		rMin = cv::getTrackbarPos("rMin", "trackbar");
-		rMax = cv::getTrackbarPos("rMax", "trackbar");
-		gMin = cv::getTrackbarPos("gMin", "trackbar");
-		gMax = cv::getTrackbarPos("gMax", "trackbar");
-		bMin = cv::getTrackbarPos("bMin", "trackbar");
-		bMax = cv::getTrackbarPos("bMax", "trackbar");
-		saturation = cv::getTrackbarPos("saturation", "trackbar");
+			//enhance saturation
+			cv::Mat hsv_enhanced;
+			vector<cv::Mat> hsv_channels;
+			cv::split(hsv, hsv_channels);
+			cv::equalizeHist(hsv_channels[1], hsv_channels[1]);
+			//hsv_channels[1] *= double(saturation)/10.0;
+			cv::merge(hsv_channels, hsv_enhanced);
+			cv::cvtColor(hsv_enhanced, hsv_enhanced, cv::COLOR_HSV2BGR);
+
+			//rgb mouse callback
+			//cv::namedWindow("rgb");
+			//cv::setMouseCallback("rgb", onMouse, &hsv_enhanced);
+			//cv::imshow("rgb", hsv_enhanced);
+			//cv::waitKey(0);
+
+			/*
+			//get average,min,max color for each channel
+			if (colors_mouse.size() > 0) {
+
+				vector<int> avg, min, max;
+				for (int i = 0; i < 3; i++) {
+					int sum = 0;
+					int min_ = 255;
+					int max_ = 0;
+					for (int j = 0; j < colors_mouse.size(); j++) {
+						sum += colors_mouse[j][i];
+						if (colors_mouse[j][i] < min_) {
+							min_ = colors_mouse[j][i];
+						}
+						if (colors_mouse[j][i] > max_) {
+							max_ = colors_mouse[j][i];
+						}
+					}
+					avg.push_back(sum / colors_mouse.size());
+					min.push_back(min_);
+					max.push_back(max_);
+				}
+
+				cout << "avg: " << avg[0] << " " << avg[1] << " " << avg[2] << endl;
+				cout << "min: " << min[0] << " " << min[1] << " " << min[2] << endl;
+				cout << "max: " << max[0] << " " << max[1] << " " << max[2] << endl;
+			}
+
+
+			int bMin = 0;
+			int bMax = 255;
+			int gMin = 0;
+			int gMax = 255;
+			int rMin = 0;
+			int rMax = 255;
+			cv::Mat filtered;
+
+			//trackbar for rbg values
+			cv::namedWindow("trackbar");
+			cv::createTrackbar("bMin", "trackbar", 0, 255);
+			cv::createTrackbar("bMax", "trackbar", 0, 255);
+			cv::createTrackbar("gMin", "trackbar", 0, 255);
+			cv::createTrackbar("gMax", "trackbar", 0, 255);
+			cv::createTrackbar("rMin", "trackbar", 0, 255);
+			cv::createTrackbar("rMax", "trackbar", 0, 255);
+
+			//loop for trackbar
+			while (DEBUG)
+			{
+				cv::inRange(hsv_enhanced, cv::Scalar(bMin, gMin, rMin), cv::Scalar(bMax, gMax, rMax), filtered);
+				cv::imshow("filtered", filtered);
+
+				cv::Mat original;
+				cv::bitwise_and(hsv_enhanced, hsv_enhanced, original, filtered);
+
+				cv::imshow("original", original);
+
+				if (cv::waitKey(1) == 27)
+					break;
+
+				rMin = cv::getTrackbarPos("rMin", "trackbar");
+				rMax = cv::getTrackbarPos("rMax", "trackbar");
+				gMin = cv::getTrackbarPos("gMin", "trackbar");
+				gMax = cv::getTrackbarPos("gMax", "trackbar");
+				bMin = cv::getTrackbarPos("bMin", "trackbar");
+				bMax = cv::getTrackbarPos("bMax", "trackbar");
+			}
+
+			cv::destroyAllWindows();
+			//return 0;
+			*/
+
+			cv::Mat msk1, out;
+			//cv::inRange(hsv_enhanced, cv::Scalar(0, 0, 68), cv::Scalar(255, 31, 100), msk1); //FAGIOLI senza gamma
+
+			cv::inRange(hsv_enhanced, cv::Scalar(0, 0, 165), cv::Scalar(26, 88, 245), msk1); //PASTA POMODORO
+			out = process(msk1, img);
+			cv::imwrite(output + outname + "_pomodoro.jpg", out);
+
+			cv::inRange(hsv_enhanced, cv::Scalar(0, 45, 140), cv::Scalar(35, 100, 165), msk1); //CONIGLIO
+			out = process(msk1, img);
+			cv::imwrite(output + outname + "_coniglio.jpg", out);
+
+			cv::inRange(hsv_enhanced, cv::Scalar(0, 97, 0), cv::Scalar(29, 250, 145), msk1); //PASTA PESTO
+			out = process(msk1, img);
+			cv::imwrite(output + outname + "_pesto.jpg", out);
+
+			cv::inRange(hsv_enhanced, cv::Scalar(0, 134, 205), cv::Scalar(29, 175, 241), msk1); //PASTA COZZE
+			out = process(msk1, img);
+			cv::imwrite(output + outname + "_cozze.jpg", out);
+
+			cv::inRange(hsv_enhanced, cv::Scalar(9, 90, 150), cv::Scalar(40, 135, 205), msk1); //PESCE
+			out = process(msk1, img);
+			cv::imwrite(output + outname + "_pesce.jpg", out);
+
+			cv::inRange(hsv_enhanced, cv::Scalar(10, 0, 175), cv::Scalar(50, 78, 212), msk1); //FAGIOLI
+			out = process(msk1, img);
+			cv::imwrite(output + outname + "_fagioli.jpg", out);
+
+			cv::inRange(hsv_enhanced, cv::Scalar(30, 105, 190), cv::Scalar(70, 130, 210), msk1); //CARNE
+			out = process(msk1, img);
+			cv::imwrite(output + outname + "_carne.jpg", out);
+
+			cv::inRange(hsv_enhanced, cv::Scalar(56, 150, 210), cv::Scalar(100, 190, 245), msk1); //RISO
+			out = process(msk1, img);
+			cv::imwrite(output + outname + "_riso.jpg", out);
+
+			cv::inRange(hsv_enhanced, cv::Scalar(68, 190, 220), cv::Scalar(113, 255, 255), msk1); //PATATE
+			out = process(msk1, img);
+			cv::imwrite(output + outname + "_patate.jpg", out);
+
+			//cv::Mat original;
+			//cv::bitwise_and(img, img, original, msk1);
+			//cv::imshow("original", original);
+			//cv::waitKey(0);
+
+			//out = process(msk1, img);
+			cout << "done" << endl;
+		}
 	}
-
-	cv::destroyAllWindows();
-	//return 0;
-
-	//enhance saturation
-	cv::Mat hsv_enhanced;
-	vector<cv::Mat> hsv_channels;
-	cv::split(hsv, hsv_channels);
-	cv::equalizeHist(hsv_channels[1], hsv_channels[1]);
-	//hsv_channels[1] *= double(saturation)/10.0;
-	cv::merge(hsv_channels, hsv_enhanced);
-	cv::cvtColor(hsv_enhanced, hsv_enhanced, cv::COLOR_HSV2BGR);
-	cv::inRange(hsv_enhanced, cv::Scalar(rMin, gMin, bMin), cv::Scalar(rMax, 0, bMax), filtered);
-	
-	cv::Mat msk1;
-	cv::inRange(hsv_enhanced, cv::Scalar(0, 0, 68), cv::Scalar(255, 31, 100), msk1); //FAGIOLI
-	cv::inRange(hsv_enhanced, cv::Scalar(0, 88, 0), cv::Scalar(21, 165, 255), msk1); //PASTA PESTO
-	cv::inRange(hsv_enhanced, cv::Scalar(18, 130, 150), cv::Scalar(100, 190, 205), msk1); //PATATE
-	cv::inRange(hsv_enhanced, cv::Scalar(14, 60, 158), cv::Scalar(40, 110, 216), msk1); //PESCE
-	//cv::inRange(hsv_enhanced, cv::Scalar(0, 0, 30), cv::Scalar(35, 146, 175), msk1); //PASTA POMODORO fa un po cagare
-	//cv::inRange(hsv_enhanced, cv::Scalar(16, 45, 90), cv::Scalar(45, 110, 160), msk1); //CARNE
-	//cv::inRange(hsv_enhanced, cv::Scalar(0, 0, 40), cv::Scalar(50, 30, 90), msk1); //CONIGLIO
-
-	cv::Mat out;
-	out = process(msk1, imaaasss);
-	//car = process(msk3, imaaasss);
-	//car = car - fag - pas;
-	//cv::Mat original;
-	//cv::bitwise_and(imaaasss, imaaasss, original, car);
-	//cv::imshow("original", original);
-	//cv::waitKey(0);
+	return 0;
+}
 
 	/*
 
@@ -221,15 +402,16 @@ int main()
 
 	//detected
 	cv::Mat original;
-	cv::bitwise_and(imaaasss, imaaasss, original, a);
+	cv::bitwise_and(img, img, original, a);
 	cv::imshow("original", original);
 	cv::waitKey(0);
 	*/
 
-	return 0;
 	// 1. recognize and localize all the food items in the tray images, considering the food categories detailed in the dataset
 	// 2. segment each food item in the tray image to compute the corresponding food quantity (i.e., amount of pixels)
 	// 3. compare the “before meal” and “after meal” images to find which food among the initial ones was eaten and which was not. The leftovers quantity is then estimated as the difference in the number of pixels of the food item in the pair of images.
+
+	/*
 
 	const vector<string> labels = {
 		"Background",
