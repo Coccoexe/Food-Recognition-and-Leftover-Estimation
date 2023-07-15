@@ -1,7 +1,7 @@
 #include "Mask.hpp"
 #include <map>
 #include <opencv2/imgproc.hpp>
-#include <opencv2/ximgproc/segmentation.hpp>
+#include <opencv2/ximgproc.hpp>
 
 #define DEBUG 1
 
@@ -18,9 +18,15 @@ Mask::Mask(const cv::Mat i)
 	cv::imshow("texture", texture);
 	//cv::waitKey(0);
 
+	// niBlack thresholding
+	cv::Mat niBlack = niBlackThresholding();
+	cv::imshow("niBlack", niBlack);
+	//cv::waitKey(0);
+
 	// Combine the two masks
 	cv::Mat mask = cv::Mat::zeros(source_image.size(), CV_8UC1);
 	cv::bitwise_and(saturation, texture, mask);
+	//cv::bitwise_and(mask, niBlack, mask);
 
 	// Clean the mask
 	cv::Mat clean_mask;
@@ -28,7 +34,7 @@ Mask::Mask(const cv::Mat i)
 
 	// Find bounding boxes
 	// TODO: implement stuff below in a separate function
-	
+
 	// Find all contours
 	std::vector<std::vector<cv::Point>> contours;
 	cv::findContours(clean_mask.clone(), contours, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
@@ -50,7 +56,7 @@ Mask::Mask(const cv::Mat i)
 cv::Mat Mask::saturationThresholding()
 {
 	// Variables
-	const int THRESHOLD = 32;
+	const int THRESHOLD = 75;//32
 
 	// Gamma correction
 	cv::Mat gc_image;
@@ -62,7 +68,7 @@ cv::Mat Mask::saturationThresholding()
 
 	// HSV conversion
 	cv::Mat hsv_image;
-	cv::cvtColor(gc_image, hsv_image, cv::COLOR_BGR2HSV);
+	cv::cvtColor(source_image, hsv_image, cv::COLOR_BGR2HSV);
 
 	// Saturation thresholding
 	cv::Mat saturation;
@@ -81,6 +87,14 @@ cv::Mat Mask::textureSegmentation()
 	const float TEXTURE_EDGE_THRESHOLD = 204;
 	typedef std::map<unsigned int, int> HDM;
 
+	// Gamma correction
+	cv::Mat gc_image;
+	cv::Mat lookUpTable(1, 256, CV_8U);
+	uchar* p = lookUpTable.ptr();
+	for (int i = 0; i < 256; ++i)
+		p[i] = cv::saturate_cast<uchar>(pow(i / 255.0, 0.5) * 255.0);
+	cv::LUT(source_image, lookUpTable, gc_image);
+
 	// Grayscale conversion
 	cv::Mat gs_image;
 	cv::cvtColor(source_image, gs_image, cv::COLOR_BGR2GRAY);
@@ -98,7 +112,7 @@ cv::Mat Mask::textureSegmentation()
 			else if (inP.x > sz.height - padding - 1) outP.x = sz.height - 2 * padding + sz.height - inP.x - 1;
 			else outP.x = inP.x;
 		};
-		
+
 		cv::copyMakeBorder(input, output, padding, padding, padding, padding, 0);
 		cv::MatIterator_<uchar> its;
 		cv::MatIterator_<uchar> it;
@@ -181,7 +195,7 @@ cv::Mat Mask::textureSegmentation()
 			cv::MatConstIterator_<uchar> begin = input.begin<uchar>() + p.x * input.size().width + p.y;
 			cv::MatConstIterator_<uchar> end = begin + dimension * input.cols;
 			HDM::iterator itHDM;
-			
+
 			for (it = begin; it != end; it += input.cols)
 			{
 				itHDM = m.find((uchar)*it);
@@ -259,7 +273,7 @@ cv::Mat Mask::textureSegmentation()
 		{
 			// 1. Get current pointer
 			ite = output.begin<float>() + (current_point - OFFSET_POINT).x * output.size().width + (current_point - OFFSET_POINT).y;
-			
+
 			// 2. Update histogram
 			if (previous_point.y != current_point.y)
 			{
@@ -277,7 +291,7 @@ cv::Mat Mask::textureSegmentation()
 			}
 			pixel_entropy = entropyAndUpdateHistogram(m, pixel_entropy, hist);
 			*ite = pixel_entropy;
-			
+
 			// 3. Advance pointer
 			previous_point = current_point;
 			current_point.y += direction;
@@ -317,6 +331,40 @@ cv::Mat Mask::textureSegmentation()
 	return converted_entropy_matrix;
 }
 
+cv::Mat Mask::niBlackThresholding()
+{
+	// Variables
+	const int BLOCK_SIZE = 3;
+	const int OPENING_SIZE = 20;
+	const int CLOSING_SIZE = 10;
+
+	// Gamma correction
+	cv::Mat gc_image;
+	cv::Mat lookUpTable(1, 256, CV_8U);
+	uchar* p = lookUpTable.ptr();
+	for (int i = 0; i < 256; ++i)
+		p[i] = cv::saturate_cast<uchar>(pow(i / 255.0, 0.5) * 255.0);
+	cv::LUT(source_image, lookUpTable, gc_image);
+
+	// Grayscale conversion
+	cv::Mat gs_image;
+	cv::cvtColor(gc_image, gs_image, cv::COLOR_BGR2GRAY);
+
+	// niBlack thresholding with slider
+	cv::Mat niBlack_image;
+	cv::ximgproc::niBlackThreshold(gs_image, niBlack_image, 255, cv::THRESH_BINARY, BLOCK_SIZE, 0.5);
+
+	// Morphological operations
+	cv::medianBlur(niBlack_image, niBlack_image, 3);
+	cv::dilate(niBlack_image, niBlack_image, cv::getStructuringElement(cv::MORPH_ELLIPSE, cv::Size(OPENING_SIZE, OPENING_SIZE)));
+	cv::medianBlur(niBlack_image, niBlack_image, 7);
+	cv::erode(niBlack_image, niBlack_image, cv::getStructuringElement(cv::MORPH_ELLIPSE, cv::Size(CLOSING_SIZE, CLOSING_SIZE)));
+	//cv::morphologyEx(niBlack_image, niBlack_image, cv::MORPH_OPEN, cv::getStructuringElement(cv::MORPH_ELLIPSE, cv::Size(OPENING_SIZE, OPENING_SIZE)));
+	//cv::morphologyEx(niBlack_image, niBlack_image, cv::MORPH_CLOSE, cv::getStructuringElement(cv::MORPH_ELLIPSE, cv::Size(CLOSING_SIZE, CLOSING_SIZE)));
+
+	return niBlack_image;
+}
+
 void Mask::cleanMask(const cv::Mat& input, cv::Mat& output)
 {
 	// TODO: Implement:
@@ -326,10 +374,10 @@ void Mask::cleanMask(const cv::Mat& input, cv::Mat& output)
 	// Declarations
 	const unsigned int AREA_THRESHOLD_1 = 4000;          // Initial, smaller, non-connected components to keep (removes small noise)
 	const unsigned int AREA_THRESHOLD_2 = 8000;          // Final, larger, connected components to keep (keeps bread)
-	const unsigned int CONTOURS_DISTANCE_THRESHOLD = 45; // Distance between two contours to be considered the same (ie bread needs to be connected)
+	const unsigned int CONTOURS_DISTANCE_THRESHOLD = 40; // Distance between two contours to be considered the same (ie bread needs to be connected)
 	const unsigned int HOUGH_CANNY_THRESHOLD = 100;      // Canny threshold for Hough transform for finding plates and bowls
-	const unsigned int HOUGH_CIRCLE_ROUNDNESS = 50;      // Roundness of circles to be found by Hough transform
-	const unsigned int PLATES_HOUGH_MAX_RADIUS = 350;    // Maximum radius of circles to be found by Hough transform (plates)
+	const unsigned int HOUGH_CIRCLE_ROUNDNESS = 45;      // Roundness of circles to be found by Hough transform
+	const unsigned int PLATES_HOUGH_MAX_RADIUS = 325;    // Maximum radius of circles to be found by Hough transform (plates)
 	const unsigned int PLATES_HOUGH_MIN_RADIUS = 250;    // Minimum radius of circles to be found by Hough transform (plates)
 	const unsigned int BOWLS_HOUGH_MAX_RADIUS = 210;     // Maximum radius of circles to be found by Hough transform (bowls)
 	const unsigned int BOWLS_HOUGH_MIN_RADIUS = 175;     // Minimum radius of circles to be found by Hough transform (bowls)
@@ -391,7 +439,7 @@ void Mask::cleanMask(const cv::Mat& input, cv::Mat& output)
 		cv::circle(external, cv::Point(plates[i][0], plates[i][1]), plates[i][2], 0, -1);
 	for (int i = 0; i < bowls.size(); i++)
 		cv::circle(external, cv::Point(bowls[i][0], bowls[i][1]), bowls[i][2], 0, -1);
-	
+
 	// Find external contours
 	std::vector<std::vector<cv::Point>> contours;
 	cv::findContours(external.clone(), contours, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
@@ -409,7 +457,7 @@ void Mask::cleanMask(const cv::Mat& input, cv::Mat& output)
 
 	// Remove stuff that is not bread (hopefully)
 	filterAreas(external, external, AREA_THRESHOLD_2);
-	if (DEBUG) cv::imshow("side_mask", external);
+	if (DEBUG) cv::imshow("external", external);
 
 	// Find contours again, now after linking close ones
 	contours.clear();
@@ -436,13 +484,12 @@ void Mask::cleanMask(const cv::Mat& input, cv::Mat& output)
 		{
 			cv::imshow("side_mask", external);
 			cv::imshow("mask", output);
-			cv::waitKey(0);
 		}
 		output = output + external;
 	}
 }
 
-Mask::~Mask(){}
+Mask::~Mask() {}
 
 /*
 	cv::Mat segments = cv::Mat::zeros(source_image.size(), CV_8UC1);
