@@ -97,7 +97,7 @@ int main111()
 			mask.at<uint8_t>(y, x) *= 10;
 	cv::imshow("mask", mask);
 	cv::waitKey(0);
-			
+
 
 	//gamma transform
 	cv::Mat gamma;
@@ -191,9 +191,9 @@ int main()
 	};
 
 	const bool DEBUG = true;
-	const bool TEST = false;
+	const bool TEST = !true;
 
-	string output = "./";
+	string output = "C:\\Users\\alessio\\Desktop\\output\\";
 	string input = "./Food_leftover_dataset/";
 	cv::Mat img;
 	string name, outname;
@@ -201,7 +201,7 @@ int main()
 	if (!TEST)
 	{
 		img = cv::imread(input + "tray1/food_image.jpg");
-		img = cv::imread("C:\\Users\\alessio\\Desktop\\1.png");
+		//img = cv::imread("C:\\Users\\alessio\\Desktop\\3.png");
 
 		//gamma transform
 		cv::Mat gamma;
@@ -225,6 +225,52 @@ int main()
 		cv::merge(hsv_channels, hsv_enhanced);
 		cv::cvtColor(hsv_enhanced, hsv_enhanced, cv::COLOR_HSV2BGR);
 
+		//bounding boxes
+		vector<pair<int, cv::Rect>> bounding_boxes;
+		bounding_boxes.push_back(make_pair(1, cv::Rect(737, 145, 384, 400)));
+
+		//set to 0 outside the bounding boxes
+		for (int y = 0; y < hsv_enhanced.rows; y++)
+			for (int x = 0; x < hsv_enhanced.cols; x++)
+			{
+				bool found = false;
+				for (int i = 0; i < bounding_boxes.size(); i++)
+					if (bounding_boxes[i].second.contains(cv::Point(x, y)))
+					{
+						found = true;
+						break;
+					}
+				if (!found)
+					hsv_enhanced.at<cv::Vec3b>(y, x) = cv::Vec3b(0, 0, 0);
+			}
+
+		cv::Mat msk1, out;
+		cv::inRange(hsv_enhanced, cv::Scalar(0, 105, 150), cv::Scalar(16, 168, 255), msk1); //PASTA PESTO
+		out = process(msk1, img);
+		cv::imshow("out", out);
+		msk1 = out.clone();
+
+		//hsv to gray
+		cv::Mat gray = cv::Mat::zeros(hsv_enhanced.size(), CV_8UC1);
+		gray(bounding_boxes[0].second).setTo(cv::GC_PR_BGD);
+		cv::threshold(out, out, 0, 1, cv::THRESH_BINARY);
+		cv::Mat somma;
+		cv::addWeighted(out, 1, gray, 1, 0, somma);
+		cv::imshow("somma", somma * 100);
+
+		cv::Mat segments = cv::Mat::zeros(img.size(), CV_8UC1);
+		cv::Mat bgdModel, fgdModel;
+		cv::grabCut(img, somma, cv::Rect(), bgdModel, fgdModel, 10, cv::GC_INIT_WITH_MASK);
+		cv::Mat1b mask_fgpf = (somma == cv::GC_FGD) | (somma == cv::GC_PR_FGD);
+		cv::Mat3b tmp = cv::Mat3b::zeros(img.rows, img.cols);
+		img.copyTo(tmp, mask_fgpf);
+		cv::erode(tmp, tmp, cv::Mat());
+		cv::imshow("foreground", tmp);
+		cv::waitKey(0);
+		cv::cvtColor(msk1, msk1, cv::COLOR_GRAY2BGR);
+		cv::addWeighted(tmp, 1, msk1, 0.5, 0, tmp);
+		cv::imshow("foreground", tmp);
+		cv::waitKey(0);
 
 		int bMin = 0;
 		int bMax = 255;
@@ -336,74 +382,48 @@ int main()
 				cv::merge(hsv_channels, hsv_enhanced);
 				cv::cvtColor(hsv_enhanced, hsv_enhanced, cv::COLOR_HSV2BGR);
 
-				cv::Mat msk1, out, tmp;
-				cv::inRange(hsv_enhanced, cv::Scalar(0, 0, 191), cv::Scalar(56, 173, 255), msk1); //fagioli
-				out = process(msk1, img);
-				cv::imwrite(output + outname + "_fagioli1.jpg", out);
-				cv::inRange(hsv_enhanced, cv::Scalar(0, 0, 0 ), cv::Scalar(57, 56, 110), msk1); //fagioli
-				out = process(msk1, img);
-				cv::imwrite(output + outname + "_fagioli2.jpg", out);
+				cv::Mat msk1, out;
 
-				//36 147 206 104 177 255 - 56 141 213 139 199 255
-				//0, 167, 206 142, 255, 255 - 0, 87, 210 104, 175, 229
-				cv::inRange(hsv_enhanced, cv::Scalar(0, 167, 206), cv::Scalar(142, 255, 255), msk1); //riso
-				tmp = process(msk1, img);
-				cv::imwrite(output + outname + "_riso1.jpg", out);
-				cv::inRange(hsv_enhanced, cv::Scalar(0, 87, 210), cv::Scalar(104, 165, 229), msk1); //riso
-				out = process(msk1, img);
-				cv::imwrite(output + outname + "_riso2.jpg", out);
+				//cv::inRange(hsv_enhanced, cv::Scalar(0, 105, 150), cv::Scalar(16, 168, 255), msk1); //PASTA PESTO
+				//out = process(msk1, img);
+				//cv::imwrite(output + outname + "_pesto.jpg", out);
 
-				//cv::bitwise_and(tmp, out, msk1);
-				//cv::imwrite(output + outname + "_riso.jpg", msk1);
+				//cv::inRange(hsv_enhanced, cv::Scalar(0, 139, 153), cv::Scalar(52, 255, 255), msk1); //PASTA POMODORO
+				//out = process(msk1, img);
+				//cv::imwrite(output + outname + "_pomodoro.jpg", out);
 
+				//cv::inRange(hsv_enhanced, cv::Scalar(0, 127, 100), cv::Scalar(24, 246, 238), msk1); //PASTA RAGU
+				//out = process(msk1, img);
+				//cv::imwrite(output + outname + "_ragu.jpg", out);
 
-				/*
-
-				cv::inRange(hsv_enhanced, cv::Scalar(0, 0, 165), cv::Scalar(26, 88, 245), msk1); //PASTA POMODORO
-				out = process(msk1, img);
-				cv::imwrite(output + outname + "_pomodoro.jpg", out);
-
-				cv::inRange(hsv_enhanced, cv::Scalar(0, 45, 140), cv::Scalar(35, 100, 165), msk1); //CONIGLIO
-				out = process(msk1, img);
-				cv::imwrite(output + outname + "_coniglio.jpg", out);
-
-				cv::inRange(hsv_enhanced, cv::Scalar(0, 97, 0), cv::Scalar(29, 250, 145), msk1); //PASTA PESTO
-				out = process(msk1, img);
-				cv::imwrite(output + outname + "_pesto.jpg", out);
-
-				cv::inRange(hsv_enhanced, cv::Scalar(0, 134, 205), cv::Scalar(29, 175, 241), msk1); //PASTA COZZE
-				out = process(msk1, img);
-				cv::imwrite(output + outname + "_cozze.jpg", out);
-
-				cv::inRange(hsv_enhanced, cv::Scalar(9, 90, 150), cv::Scalar(40, 135, 205), msk1); //PESCE
-				out = process(msk1, img);
-				cv::imwrite(output + outname + "_pesce.jpg", out);
-
-				cv::inRange(hsv_enhanced, cv::Scalar(10, 0, 158), cv::Scalar(50, 85, 186), msk1); //FAGIOLI
+				cv::inRange(hsv_enhanced, cv::Scalar(9, 23, 156), cv::Scalar(56, 64, 255), msk1); //FAGIOLI
 				out = process(msk1, img);
 				cv::imwrite(output + outname + "_fagioli.jpg", out);
 
-				cv::inRange(hsv_enhanced, cv::Scalar(30, 105, 190), cv::Scalar(70, 130, 210), msk1); //CARNE
-				out = process(msk1, img);
-				cv::imwrite(output + outname + "_carne.jpg", out);
-
-				cv::inRange(hsv_enhanced, cv::Scalar(56, 150, 210), cv::Scalar(100, 190, 245), msk1); //RISO
-				out = process(msk1, img);
-				cv::imwrite(output + outname + "_riso.jpg", out);
-
-				cv::inRange(hsv_enhanced, cv::Scalar(68, 190, 220), cv::Scalar(113, 255, 255), msk1); //PATATE
-				out = process(msk1, img);
-				cv::imwrite(output + outname + "_patate.jpg", out);
-
-				*/
-
-				//cv::Mat original;
-				//cv::bitwise_and(img, img, original, msk1);
-				//cv::imshow("original", original);
-				//cv::waitKey(0);
-
+				//cv::inRange(hsv_enhanced, cv::Scalar(50, 95, 158), cv::Scalar(87, 194, 217), msk1); //CARNE
 				//out = process(msk1, img);
-				cout << "done" << endl;
+				//cv::imwrite(output + outname + "_carne.jpg", out);
+
+
+				//cv::inRange(hsv_enhanced, cv::Scalar(0, 45, 140), cv::Scalar(35, 100, 165), msk1); //CONIGLIO
+				//out = process(msk1, img);
+				//cv::imwrite(output + outname + "_coniglio.jpg", out);
+
+				//cv::inRange(hsv_enhanced, cv::Scalar(0, 134, 205), cv::Scalar(29, 175, 241), msk1); //PASTA COZZE
+				//out = process(msk1, img);
+				//cv::imwrite(output + outname + "_cozze.jpg", out);
+
+				//cv::inRange(hsv_enhanced, cv::Scalar(9, 90, 150), cv::Scalar(40, 135, 205), msk1); //PESCE
+				//out = process(msk1, img);
+				//cv::imwrite(output + outname + "_pesce.jpg", out);
+
+				//cv::inRange(hsv_enhanced, cv::Scalar(56, 150, 210), cv::Scalar(100, 190, 245), msk1); //RISO
+				//out = process(msk1, img);
+				//cv::imwrite(output + outname + "_riso.jpg", out);
+
+				//cv::inRange(hsv_enhanced, cv::Scalar(68, 190, 220), cv::Scalar(113, 255, 255), msk1); //PATATE
+				//out = process(msk1, img);
+				//cv::imwrite(output + outname + "_patate.jpg", out);
 			}
 		}
 		return 0;
@@ -476,7 +496,7 @@ int mainzzz()
 
 
 
-	return 0;
+
 
 	int tray = 1;                                                                                 // Tray number
 	cv::Mat image = cv::imread(dataset + "tray" + to_string(tray) + "/food_image.jpg");
@@ -549,7 +569,7 @@ int mainzzz()
 
 		for (const auto& entry : filesystem::directory_iterator(folder))
 		{   // Process each IMAGE in the folder
-			const cv::Mat img = cv::imread(entry.path().string());         
+			const cv::Mat img = cv::imread(entry.path().string());
 			return 0;// Read image
 			match.insert(std::pair<int, const cv::Mat>(i, img));                                  // Add (label, image) to map
 		}
