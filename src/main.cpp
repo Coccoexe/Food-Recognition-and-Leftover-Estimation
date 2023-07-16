@@ -169,7 +169,7 @@ int main111()
 	return 0;
 }
 
-int maincocco()
+int main()
 {
 	auto filterAreas = [](const cv::Mat& input, cv::Mat& output, const unsigned int threshold) -> void
 	{
@@ -200,7 +200,8 @@ int maincocco()
 
 	if (!TEST)
 	{
-		img = cv::imread(input + "tray4/food_image.jpg");
+		img = cv::imread(input + "tray1/food_image.jpg");
+		img = cv::imread("C:\\Users\\alessio\\Desktop\\1.png");
 
 		//gamma transform
 		cv::Mat gamma;
@@ -223,6 +224,7 @@ int maincocco()
 		//hsv_channels[1] *= 5;
 		cv::merge(hsv_channels, hsv_enhanced);
 		cv::cvtColor(hsv_enhanced, hsv_enhanced, cv::COLOR_HSV2BGR);
+
 
 		int bMin = 0;
 		int bMax = 255;
@@ -261,6 +263,10 @@ int maincocco()
 				cout << "Blue range: " << bMin << " " << bMax << endl;
 				cout << "Green range: " << gMin << " " << gMax << endl;
 				cout << "Red range: " << rMin << " " << rMax << endl;
+				cv::Mat temp;
+				cv::inRange(hsv_enhanced, cv::Scalar(bMin, gMin, rMin), cv::Scalar(bMax, gMax, rMax), temp);
+				cv::imshow("img", process(temp, img));
+				cv::waitKey(0);
 			}
 
 			rMin = cv::getTrackbarPos("rMin", "trackbar");
@@ -323,30 +329,32 @@ int maincocco()
 				cv::Mat hsv_enhanced;
 				vector<cv::Mat> hsv_channels;
 				cv::split(hsv, hsv_channels);
+				//cv::equalizeHist(hsv_channels[0], hsv_channels[0]);
 				cv::equalizeHist(hsv_channels[1], hsv_channels[1]);
+				//cv::equalizeHist(hsv_channels[2], hsv_channels[2]);
 				//hsv_channels[1] *= double(saturation)/10.0;
 				cv::merge(hsv_channels, hsv_enhanced);
 				cv::cvtColor(hsv_enhanced, hsv_enhanced, cv::COLOR_HSV2BGR);
 
 				cv::Mat msk1, out, tmp;
-				//cv::inRange(hsv_enhanced, cv::Scalar(0, 0, 191), cv::Scalar(56, 173, 255), msk1); //fagioli
-				//out = process(msk1, img);
-				//cv::imwrite(output + outname + "_fagioli1.jpg", out);
-				//cv::inRange(hsv_enhanced, cv::Scalar(0, 0, 0 ), cv::Scalar(57, 56, 110), msk1); //fagioli
-				//out = process(msk1, img);
-				//cv::imwrite(output + outname + "_fagioli2.jpg", out);
+				cv::inRange(hsv_enhanced, cv::Scalar(0, 0, 191), cv::Scalar(56, 173, 255), msk1); //fagioli
+				out = process(msk1, img);
+				cv::imwrite(output + outname + "_fagioli1.jpg", out);
+				cv::inRange(hsv_enhanced, cv::Scalar(0, 0, 0 ), cv::Scalar(57, 56, 110), msk1); //fagioli
+				out = process(msk1, img);
+				cv::imwrite(output + outname + "_fagioli2.jpg", out);
 
 				//36 147 206 104 177 255 - 56 141 213 139 199 255
 				//0, 167, 206 142, 255, 255 - 0, 87, 210 104, 175, 229
 				cv::inRange(hsv_enhanced, cv::Scalar(0, 167, 206), cv::Scalar(142, 255, 255), msk1); //riso
 				tmp = process(msk1, img);
-				//cv::imwrite(output + outname + "_riso1.jpg", out);
+				cv::imwrite(output + outname + "_riso1.jpg", out);
 				cv::inRange(hsv_enhanced, cv::Scalar(0, 87, 210), cv::Scalar(104, 165, 229), msk1); //riso
 				out = process(msk1, img);
-				//cv::imwrite(output + outname + "_riso2.jpg", out);
+				cv::imwrite(output + outname + "_riso2.jpg", out);
 
-				cv::bitwise_and(tmp, out, msk1);
-				cv::imwrite(output + outname + "_riso.jpg", msk1);
+				//cv::bitwise_and(tmp, out, msk1);
+				//cv::imwrite(output + outname + "_riso.jpg", msk1);
 
 
 				/*
@@ -371,7 +379,7 @@ int maincocco()
 				out = process(msk1, img);
 				cv::imwrite(output + outname + "_pesce.jpg", out);
 
-				cv::inRange(hsv_enhanced, cv::Scalar(10, 0, 175), cv::Scalar(50, 78, 212), msk1); //FAGIOLI
+				cv::inRange(hsv_enhanced, cv::Scalar(10, 0, 158), cv::Scalar(50, 85, 186), msk1); //FAGIOLI
 				out = process(msk1, img);
 				cv::imwrite(output + outname + "_fagioli.jpg", out);
 
