@@ -9,11 +9,12 @@
 #include "BoundingBoxes.hpp"
 #include "Segmentation.hpp"
 
-#include <string>
 #include <filesystem>
-#include <vector>
-#include <iostream>
 #include <fstream>
+#include <iostream>
+#include <queue>
+#include <string>
+#include <vector>
 
 #include <opencv2/opencv.hpp>
 #include <opencv2/imgproc.hpp>
@@ -118,52 +119,54 @@ int main()
 		return image(cv::Rect(x, y, w, h));
 	};
 
+	// Python initialization
+	Py_Initialize();
+	PyRun_SimpleString("import sys");
+	PyRun_SimpleString("sys.path.append('../../../src/Python/')");
+	PyRun_SimpleString("sys.argv = ['CLIP_interface.py']");
+	PyObject* pName = PyUnicode_FromString("CLIP_interface");
+	PyObject* pModule = PyImport_Import(pName);
+	PyObject* pFunc = PyObject_GetAttrString(pModule, "main");
+
 	// Process
 	if (!filesystem::exists(PLATES_PATH)) filesystem::create_directory(PLATES_PATH);
 	for (int i = 1; i <= NUMBER_OF_TRAYS; i++)
 	{	// For each tray
 		if (!filesystem::exists(PLATES_PATH + "tray" + to_string(i) + "/")) filesystem::create_directory(PLATES_PATH + "tray" + to_string(i) + "/");
+		queue<BoundingBoxes> bb;
 		for (const auto& imgname : IMAGE_NAMES)
 		{	// For each image
 			if (!filesystem::exists(PLATES_PATH + "tray" + to_string(i) + "/" + imgname + "/")) filesystem::create_directory(PLATES_PATH + "tray" + to_string(i) + "/" + imgname + "/");
 			cv::Mat image = cv::imread(DATASET_PATH + "tray" + to_string(i) + "/" + imgname + ".jpg");
-			BoundingBoxes bb(image);
-			vector<cv::Vec3f> plates = bb.getPlates();
-			pair<bool, cv::Vec3f> salad = bb.getSalad();
-			pair<bool, cv::Rect> bread = bb.getBread();
+			bb.push(BoundingBoxes(image));
+			vector<cv::Vec3f> plates = bb.back().getPlates();
 
 			// Save plates cutouts
 			for (int j = 0; j < plates.size(); j++)	cv::imwrite(PLATES_PATH + "tray" + to_string(i) + "/" + imgname + "/plate" + to_string(j) + ".jpg", cutout(image, plates[j]));
 		}
-		if (DEBUG) cout << "Running Python script..." << endl;
 
 		// Python OpenAI CLIP classifier
-		Py_Initialize();
-		PyRun_SimpleString("import sys");
-		PyRun_SimpleString("sys.path.append('../../../src/Python/')");
-		PyRun_SimpleString("sys.argv = ['CLIP_interface.py']");
-		PyObject* pName = PyUnicode_FromString("CLIP_interface");
-		PyObject* pModule = PyImport_Import(pName);
-		PyObject* pFunc = PyObject_GetAttrString(pModule, "main");
+		if (DEBUG) cout << "Running Python script..." << endl;
 		PyObject* pArgs = PyTuple_New(1);
 		PyObject* pValue = PyLong_FromLong(i);
 		PyTuple_SetItem(pArgs, 0, pValue);
 		PyObject_CallObject(pFunc, pArgs);
-		Py_Finalize();
 		if (DEBUG) cout << "Python script finished" << endl;
 
 		// Plate segmentation
 		for (const auto& imgname : IMAGE_NAMES)
-		{	// For each image
+		{	// For each image get the bounding boxes
+			BoundingBoxes bfront = bb.front();
+			bb.pop();
 			vector<string> files;
 			cv::glob(PLATES_PATH + "tray" + to_string(i) + "/" + imgname + "/*.jpg", files);
+
 			for (const auto& file : files)
-			{	// For each plate in the image
-				string name = file.substr(PLATES_PATH.length(), file.length() - 1);
-				ifstream infile(LABELS_PATH + name + ".txt");
-				string line;
+			{	// For each plate in the image get the labels
 				vector<string> labels;
-				while (getline(infile, line)) labels.push_back(line);
+				ifstream infile(LABELS_PATH + file.substr(PLATES_PATH.length(), file.length() - 1) + ".txt");
+				string category;
+				while (getline(infile, category)) labels.push_back(category);
 				infile.close();
 				
 				// Segmentation
@@ -178,6 +181,9 @@ int main()
 		display(a);
 
 	}
+
+	// Python finalization
+	Py_Finalize();
 
 	return 0;
 }
