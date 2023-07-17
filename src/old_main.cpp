@@ -3,9 +3,7 @@
 // Food Recognition and Leftover Estimation
 
 
-#include "BoundingBox.hpp"
-#include "Mask.hpp"
-#include "Metrics.hpp"
+#include "BoundingBoxes.hpp"
 
 #include <opencv2/opencv.hpp>
 #include <opencv2/highgui.hpp>
@@ -19,6 +17,9 @@
 
 #include <opencv2/ximgproc.hpp>
 #include <opencv2/intensity_transform.hpp>
+
+//python
+#include <Python.h>
 
 using namespace std;
 
@@ -201,7 +202,7 @@ int main()
 	if (!TEST)
 	{
 		img = cv::imread(input + "tray1/food_image.jpg");
-		//img = cv::imread("C:\\Users\\alessio\\Desktop\\3.png");
+		//img = cv::imread("C:\\Users\\alessio\\Desktop\\plate0.jpg");
 
 		//gamma transform
 		cv::Mat gamma;
@@ -227,7 +228,7 @@ int main()
 
 		//bounding boxes
 		vector<pair<int, cv::Rect>> bounding_boxes;
-		bounding_boxes.push_back(make_pair(1, cv::Rect(737, 145, 384, 400)));
+		bounding_boxes.push_back(make_pair(1, cv::Rect(250, 430, 460, 460)));
 
 		//set to 0 outside the bounding boxes
 		for (int y = 0; y < hsv_enhanced.rows; y++)
@@ -245,9 +246,10 @@ int main()
 			}
 
 		cv::Mat msk1, out;
-		cv::inRange(hsv_enhanced, cv::Scalar(0, 105, 150), cv::Scalar(16, 168, 255), msk1); //PASTA PESTO
+		cv::inRange(hsv_enhanced, cv::Scalar(9, 23, 156), cv::Scalar(56, 64, 255), msk1); //PASTA PESTO
 		out = process(msk1, img);
 		cv::imshow("out", out);
+		cv::waitKey(0);
 		msk1 = out.clone();
 
 		//hsv to gray
@@ -432,6 +434,7 @@ int main()
 	return 0;
 }
 
+/*
 int mainzzz()
 {
 	// 1. recognize and localize all the food items in the tray images, considering the food categories detailed in the dataset

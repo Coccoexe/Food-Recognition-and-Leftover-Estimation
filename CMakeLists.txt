@@ -14,13 +14,15 @@ project ("Food-Recognition-and-Leftover-Estimation")
 
 # opencv
 find_package(OpenCV REQUIRED)
+find_package(Python REQUIRED Development) #NEW
 
 # include
 include_directories(${OpenCV_INCLUDE_DIRS})
 
 # executables & libraries
-add_executable (${PROJECT_NAME} "src/main.cpp" "src/BoundingBoxes.cpp")
+add_executable (${PROJECT_NAME}  "src/main.cpp" "src/BoundingBoxes.cpp" )
 target_link_libraries(${PROJECT_NAME} ${OpenCV_LIBS})
+target_link_libraries(${PROJECT_NAME} Python::Python) #NEW
 
 # check
 if (CMAKE_VERSION VERSION_GREATER 3.12)

@@ -15,13 +15,15 @@
 #include <opencv2/opencv.hpp>
 #include <opencv2/imgproc.hpp>
 
+#include <Python.h>
 
-#define DEBUG true
+#define DEBUG false
 
 using namespace std;
 
 int main()
 {
+
 	// Variables
 	const string DATASET_PATH = "./Food_leftover_dataset/";
 	const int NUMBER_OF_TRAYS = 8;
@@ -53,12 +55,30 @@ int main()
 			for (int j = 0; j < plates.size(); j++)
 			{
 				cv::imwrite("./plates/tray" + to_string(i) + "/" + imgname + "/plate" + to_string(j) + ".jpg", cutout(image, plates[j]));
-				// run CLIP
-				// get k classes:
-				//     if k == 1 --> grabCut segmentation
-				//     if k > 1  --> k+1 means segmentation
 			}
 		}
+
+		if (DEBUG) cout << "Running Python script..." << endl;
+
+		//Python detect
+		Py_Initialize();
+		PyRun_SimpleString("import sys");
+		PyRun_SimpleString("sys.path.append('../../../src/Python/')");
+		PyRun_SimpleString("sys.argv = ['CLIP_interface.py']");
+		PyObject* pName = PyUnicode_FromString("CLIP_interface");
+		PyObject* pModule = PyImport_Import(pName);
+		PyObject* pFunc = PyObject_GetAttrString(pModule, "main");
+		//PyObject_CallObject(pFunc, NULL);
+		
+		//call method with i
+		PyObject* pArgs = PyTuple_New(1);
+		PyObject* pValue = PyLong_FromLong(i);
+		PyTuple_SetItem(pArgs, 0, pValue);
+		PyObject_CallObject(pFunc, pArgs);
+
+		Py_Finalize();
+
+		if (DEBUG) cout << "Python script finished" << endl;
 	}
 
 	return 0;
