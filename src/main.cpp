@@ -7,6 +7,7 @@
 // 3. Detect bread (if exists) --> grabCut segmentation
 
 #include "BoundingBoxes.hpp"
+#include "Segmentation.hpp"
 
 #include <string>
 #include <filesystem>
@@ -22,35 +23,34 @@
 #define DEBUG false
 
 using namespace std;
-using namespace cv;
 
-void display(Mat img)
+void display(cv::Mat img)
 {
-	namedWindow("Display window", WINDOW_AUTOSIZE);
-	imshow("Display window", img);
-	waitKey(0);
+	cv::namedWindow("Display window", cv::WINDOW_AUTOSIZE);
+	cv::imshow("Display window", img);
+	cv::waitKey(0);
 }
 
-void k_means(Mat img, Mat out, int k)
+void k_means(cv::Mat img, cv::Mat out, int k)
 {
-	Mat samples(img.rows * img.cols, 3, CV_32F);
+	cv::Mat samples(img.rows * img.cols, 3, CV_32F);
 	for (int y = 0; y < img.rows; y++)
 		for (int x = 0; x < img.cols; x++)
 			for (int z = 0; z < 3; z++)
-				samples.at<float>(y + x * img.rows, z) = img.at<Vec3b>(y, x)[z];
+				samples.at<float>(y + x * img.rows, z) = img.at<cv::Vec3b>(y, x)[z];
 
-	Mat labels;
+	cv::Mat labels;
 	int attempts = 5;
-	Mat centers;
-	kmeans(samples, k, labels, TermCriteria(TermCriteria::EPS + TermCriteria::COUNT, 10000, 0.0001), attempts, KMEANS_PP_CENTERS, centers);
+	cv::Mat centers;
+	cv::kmeans(samples, k, labels, cv::TermCriteria(cv::TermCriteria::EPS + cv::TermCriteria::COUNT, 10000, 0.0001), attempts, cv::KMEANS_PP_CENTERS, centers);
 
 	for (int y = 0; y < img.rows; y++)
 		for (int x = 0; x < img.cols; x++)
 		{
 			int cluster_idx = labels.at<int>(y + x * img.rows, 0);
-			out.at<Vec3b>(y, x)[0] = centers.at<float>(cluster_idx, 0);
-			out.at<Vec3b>(y, x)[1] = centers.at<float>(cluster_idx, 1);
-			out.at<Vec3b>(y, x)[2] = centers.at<float>(cluster_idx, 2);
+			out.at<cv::Vec3b>(y, x)[0] = centers.at<float>(cluster_idx, 0);
+			out.at<cv::Vec3b>(y, x)[1] = centers.at<float>(cluster_idx, 1);
+			out.at<cv::Vec3b>(y, x)[2] = centers.at<float>(cluster_idx, 2);
 		}
 }
 
@@ -102,12 +102,13 @@ cv::Mat process(cv::Mat msk1, cv::Mat imaaasss) {
 }
 
 int main()
-{
-	
+{	
 	// Variables
 	const string DATASET_PATH = "./Food_leftover_dataset/";
 	const int NUMBER_OF_TRAYS = 8;
 	const vector<string> IMAGE_NAMES = { "food_image", "leftover1", "leftover2", "leftover3" };
+	const string PLATES_PATH = "./plates/";
+	const string LABELS_PATH = "./labels/";
 	auto cutout = [](const cv::Mat& image, const cv::Vec3f& circle) -> cv::Mat
 	{
 		const int x = cvRound(circle[0] - circle[2]) > 0 ? cvRound(circle[0] - circle[2]) : 0;
@@ -116,14 +117,12 @@ int main()
 		const int h = y + cvRound(2 * circle[2]) < image.rows ? cvRound(2 * circle[2]) : image.rows - y;
 		return image(cv::Rect(x, y, w, h));
 	};
-	const string PLATES_PATH = "./plates/";
-	const string LABELS_PATH = "./labels/";
 
 	// Process
 	if (!filesystem::exists(PLATES_PATH)) filesystem::create_directory(PLATES_PATH);
 	for (int i = 1; i <= NUMBER_OF_TRAYS; i++)
 	{	// For each tray
-		if (!filesystem::exists(PLATES_PATH + "tray" + to_string(i) + " / ")) filesystem::create_directory(PLATES_PATH + "tray" + to_string(i) + " / ");
+		if (!filesystem::exists(PLATES_PATH + "tray" + to_string(i) + "/")) filesystem::create_directory(PLATES_PATH + "tray" + to_string(i) + "/");
 		for (const auto& imgname : IMAGE_NAMES)
 		{	// For each image
 			if (!filesystem::exists(PLATES_PATH + "tray" + to_string(i) + "/" + imgname + "/")) filesystem::create_directory(PLATES_PATH + "tray" + to_string(i) + "/" + imgname + "/");
@@ -134,15 +133,11 @@ int main()
 			pair<bool, cv::Rect> bread = bb.getBread();
 
 			// Save plates cutouts
-			for (int j = 0; j < plates.size(); j++)
-			{
-				cv::imwrite(PLATES_PATH + "tray" + to_string(i) + "/" + imgname + "/plate" + to_string(j) + ".jpg", cutout(image, plates[j]));
-			}
+			for (int j = 0; j < plates.size(); j++)	cv::imwrite(PLATES_PATH + "tray" + to_string(i) + "/" + imgname + "/plate" + to_string(j) + ".jpg", cutout(image, plates[j]));
 		}
-
 		if (DEBUG) cout << "Running Python script..." << endl;
 
-		//Python detect
+		// Python OpenAI CLIP classifier
 		Py_Initialize();
 		PyRun_SimpleString("import sys");
 		PyRun_SimpleString("sys.path.append('../../../src/Python/')");
@@ -150,48 +145,36 @@ int main()
 		PyObject* pName = PyUnicode_FromString("CLIP_interface");
 		PyObject* pModule = PyImport_Import(pName);
 		PyObject* pFunc = PyObject_GetAttrString(pModule, "main");
-		//PyObject_CallObject(pFunc, NULL);
-		
-		//call method with i
 		PyObject* pArgs = PyTuple_New(1);
 		PyObject* pValue = PyLong_FromLong(i);
 		PyTuple_SetItem(pArgs, 0, pValue);
 		PyObject_CallObject(pFunc, pArgs);
-
 		Py_Finalize();
-
 		if (DEBUG) cout << "Python script finished" << endl;
 
-		// Segmentation
+		// Plate segmentation
 		for (const auto& imgname : IMAGE_NAMES)
-		{
+		{	// For each image
 			vector<string> files;
-			glob(PLATES_PATH + "tray" + to_string(i) + "/" + imgname + "/*.jpg", files);
+			cv::glob(PLATES_PATH + "tray" + to_string(i) + "/" + imgname + "/*.jpg", files);
 			for (const auto& file : files)
-			{
-				string name = file.substr(PLATES_PATH.length(), file.length()-1);
-				//read label from file
+			{	// For each plate in the image
+				string name = file.substr(PLATES_PATH.length(), file.length() - 1);
 				ifstream infile(LABELS_PATH + name + ".txt");
 				string line;
 				vector<string> labels;
-				while (getline(infile, line))
-				{
-					labels.push_back(line);
-				}
+				while (getline(infile, line)) labels.push_back(line);
 				infile.close();
-
-				for (const auto& label : labels)
-				{
-					if (true) cout << "Looking for label: " << label << " in file: " << PLATES_PATH + name << endl;
-					// segmentation with colors
-				}
-
 				
+				// Segmentation
+				cv::Mat plate_image = cv::imread(file);
+				Segmentation seg(plate_image, labels);
+				cv::Mat mask = seg.getSegments();
 			}
 		}
 
 		//black image 20x20
-		Mat a = Mat::zeros(20, 20, CV_8UC1);
+		cv::Mat a = cv::Mat::zeros(20, 20, CV_8UC1);
 		display(a);
 
 	}
