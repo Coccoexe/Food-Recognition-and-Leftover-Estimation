@@ -167,10 +167,10 @@ int main()
 			// Plates
 			for (int j = 0; j < files.size(); j++)
 			{	// For each plate in the image get the labels : association(file=plate_image, labels=categories, plates[j])
-				vector<string> labels;
+				vector<int> labels;
 				ifstream infile(LABELS_PATH + files[j].substr(PLATES_PATH.length(), files[j].length() - 1) + ".txt");
 				string category;
-				while (getline(infile, category)) labels.push_back(category);
+				while (getline(infile, category)) labels.push_back(stoi(category));
 				infile.close();
 				
 				// Segmentation

@@ -1,12 +1,52 @@
 # include "Segmentation.hpp"
 
-Segmentation::Segmentation(cv::Mat& p, std::vector<std::string> l)
+Segmentation::Segmentation(cv::Mat& p, std::vector<int> l)
 	: plate(p), labels(l)
 {
 	segments = cv::Mat::zeros(plate.size(), CV_8UC1);
+
+	//correction
+	cv::Mat corrected;
+	correction(plate, corrected);
+	cv::imshow("corrected", corrected);
+
+	//segmentation
+	for (const auto label : labels)
+	{
+		std::cout<<label<<std::endl;
+		cv::Mat ranged, mask;
+		cv::inRange(corrected, c_ranges[label].first, c_ranges[label].second, ranged);
+		process(ranged, mask);
+		cv::threshold(mask, mask, 0, label*15, cv::THRESH_BINARY);
+		segments = segments | mask;
+	}
+	cv::imshow("segments", segments);
+	cv::waitKey(0);
 }
 
-cv::Mat Segmentation::process(cv::Mat ranged, cv::Mat colored)
+void Segmentation::correction(cv::Mat& in, cv::Mat& out)
+{
+	//gamma transform
+	cv::Mat gamma;
+	cv::Mat lookUpTable(1, 256, CV_8U);
+	uchar* p = lookUpTable.ptr();
+	double gamma_ = 0.5;
+	for (int i = 0; i < 256; ++i)
+		p[i] = cv::saturate_cast<uchar>(pow(i / 255.0, gamma_) * 255.0);
+	cv::LUT(in, lookUpTable, gamma);
+
+	//image to hsv
+	cv::Mat hsv;
+	cv::cvtColor(gamma, hsv, cv::COLOR_BGR2HSV);
+	std::vector<cv::Mat> hsv_channels;
+	cv::split(hsv, hsv_channels);
+	cv::equalizeHist(hsv_channels[1], hsv_channels[1]);
+	cv::merge(hsv_channels, out);
+	cv::cvtColor(out, out, cv::COLOR_HSV2BGR);
+	return;
+}
+
+void Segmentation::process(cv::Mat& in, cv::Mat& out)
 {
 	auto filterAreas = [](const cv::Mat& input, cv::Mat& output, const unsigned int threshold) -> void
 	{
@@ -27,27 +67,23 @@ cv::Mat Segmentation::process(cv::Mat ranged, cv::Mat colored)
 		input = (input | inversed_ff);
 	};
 	//median
-	cv::medianBlur(ranged, ranged, 5);
+	cv::medianBlur(in, in, 5);
 
 	//closing
 	cv::Mat kernel = cv::getStructuringElement(cv::MORPH_ELLIPSE, cv::Size(40, 40));
-	cv::morphologyEx(ranged, ranged, cv::MORPH_CLOSE, kernel);
+	cv::morphologyEx(in, in, cv::MORPH_CLOSE, kernel);
 
 	//dilation
-	cv::Mat a = cv::Mat::zeros(ranged.size(), CV_8UC1);
-	filterAreas(ranged, a, 8000);
-	cv::dilate(a, a, cv::getStructuringElement(cv::MORPH_ELLIPSE, cv::Size(15, 15)));
+	out = cv::Mat::zeros(in.size(), CV_8UC1);
+	filterAreas(in, out, 8000);
+	cv::dilate(out, out, cv::getStructuringElement(cv::MORPH_ELLIPSE, cv::Size(15, 15)));
 
 	//closing
 	kernel = cv::getStructuringElement(cv::MORPH_ELLIPSE, cv::Size(15, 15));
-	cv::morphologyEx(a, a, cv::MORPH_CLOSE, kernel);
+	cv::morphologyEx(out, out, cv::MORPH_CLOSE, kernel);
 
 	//filling holes
-	fillHoles(a);
+	fillHoles(out);
 
-	//detected
-	cv::Mat original;
-	cv::bitwise_and(colored, colored, original, a);
-
-	return a;
+	return;
 }
