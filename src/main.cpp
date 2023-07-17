@@ -153,26 +153,40 @@ int main()
 		PyObject_CallObject(pFunc, pArgs);
 		if (DEBUG) cout << "Python script finished" << endl;
 
-		// Plate segmentation
+		// Segmentation
 		for (const auto& imgname : IMAGE_NAMES)
 		{	// For each image get the bounding boxes
-			BoundingBoxes bfront = bb.front();
+			cv::Mat image = cv::imread(DATASET_PATH + "tray" + to_string(i) + "/" + imgname + ".jpg");
+			vector<cv::Vec3f> plates = bb.front().getPlates();
+			pair<bool, cv::Vec3f> salad = bb.front().getSalad();
+			pair<bool, cv::Rect> bread = bb.front().getBread();
 			bb.pop();
 			vector<string> files;
 			cv::glob(PLATES_PATH + "tray" + to_string(i) + "/" + imgname + "/*.jpg", files);
 
-			for (const auto& file : files)
-			{	// For each plate in the image get the labels
+			// Plates
+			for (int j = 0; j < files.size(); j++)
+			{	// For each plate in the image get the labels : association(file=plate_image, labels=categories, plates[j])
 				vector<string> labels;
-				ifstream infile(LABELS_PATH + file.substr(PLATES_PATH.length(), file.length() - 1) + ".txt");
+				ifstream infile(LABELS_PATH + files[j].substr(PLATES_PATH.length(), files[j].length() - 1) + ".txt");
 				string category;
 				while (getline(infile, category)) labels.push_back(category);
 				infile.close();
 				
 				// Segmentation
-				cv::Mat plate_image = cv::imread(file);
+				cv::Mat plate_image = cv::imread(files[j]);
 				Segmentation seg(plate_image, labels);
 				cv::Mat mask = seg.getSegments();
+			}
+
+			// Salad
+			if (salad.first)
+			{	// TODO: implement salad segmentation
+			}
+
+			// Bread
+			if (bread.first)
+			{	// TODO: implement bread segmentation
 			}
 		}
 
