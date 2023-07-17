@@ -119,7 +119,7 @@ def main(i : int = None):
     global device, model, preprocess, input_folder, output_folder
 
     input_folder = './plates/'
-    output_folder = './output/'
+    output_folder = './labels/'
 
     labels = [
         "pasta with pesto",

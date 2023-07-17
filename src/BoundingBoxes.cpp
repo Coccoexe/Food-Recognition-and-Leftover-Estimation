@@ -5,7 +5,7 @@
 #include <opencv2/opencv.hpp>
 #include <opencv2/imgproc.hpp>
 
-#define DEBUG true
+#define DEBUG false
 
 BoundingBoxes::BoundingBoxes(const cv::Mat& input)
 	: source_image(input)

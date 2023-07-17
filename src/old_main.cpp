@@ -709,3 +709,48 @@ cv::Mat img1 = cv::imread(matching + "image.png");
 	cv::imshow("clustered image", new_image);
 	cv::waitKey(0);
 */
+
+/*//hsv
+	Mat hsv;
+	cvtColor(img, hsv, COLOR_BGR2HSV);
+	//take s channel
+	vector<Mat> channels;
+	split(hsv, channels);
+	Mat s = channels[1];
+	//threshold
+	Mat mask;
+	threshold(s, mask, 0, 255, THRESH_BINARY | THRESH_OTSU);
+	display(mask);
+	
+	//mask all to 2
+	Mat mask2(mask.size(), CV_8UC1, Scalar(2));
+	threshold(mask, mask, 0, 1, cv::THRESH_BINARY);
+	//closing
+	Mat kernel = getStructuringElement(MORPH_ELLIPSE, Size(25, 25));
+	morphologyEx(mask, mask, MORPH_CLOSE, kernel);
+	cv::Mat somma;
+	addWeighted(mask, 1, mask2, 1, 0, somma);
+	Mat bgdModel, fgdModel;
+	display(somma*100);
+	grabCut(img, somma, Rect(), bgdModel, fgdModel, 1, GC_INIT_WITH_MASK);
+	cv::Mat1b mask_fgpf = (somma == cv::GC_FGD) | (somma == cv::GC_PR_FGD);
+	cv::Mat3b tmp = cv::Mat3b::zeros(img.rows, img.cols);
+	img.copyTo(tmp, mask_fgpf);
+	cv::erode(tmp, tmp, cv::Mat());
+	cv::imshow("foreground", tmp);
+	cv::waitKey(0);
+	
+
+	Mat out;
+	bilateralFilter(tmp, out, 15, 80, 80);
+	display(out);
+
+	pyrMeanShiftFiltering(out, out, 20, 50, 3);
+	display(out);
+
+	medianBlur(out, out, 5);
+	display(out);
+
+	//kmeans
+	k_means(out, out, 4);
+	display(out);*/
