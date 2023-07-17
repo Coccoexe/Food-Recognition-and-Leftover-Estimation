@@ -20,7 +20,7 @@ find_package(Python REQUIRED Development) #NEW
 include_directories(${OpenCV_INCLUDE_DIRS})
 
 # executables & libraries
-add_executable (${PROJECT_NAME}  "src/main.cpp" "src/BoundingBoxes.cpp"  "src/Segmentation.cpp")
+add_executable (${PROJECT_NAME}  "src/main.cpp" "src/BoundingBoxes.cpp" "src/Segmentation.cpp")
 target_link_libraries(${PROJECT_NAME} ${OpenCV_LIBS})
 target_link_libraries(${PROJECT_NAME} Python::Python) #NEW
 

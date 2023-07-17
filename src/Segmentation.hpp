@@ -14,6 +14,6 @@ private:
 	const cv::Mat plate;
 	const std::vector<std::string> labels;
 	cv::Mat segments;
-
+	cv::Mat process(cv::Mat ranged, cv::Mat colored);
 };
 
