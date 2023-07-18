@@ -13,7 +13,6 @@ Segmentation::Segmentation(cv::Mat& p, std::vector<int> l)
 	//segmentation
 	for (const auto label : labels)
 	{
-		std::cout<<label<<std::endl;
 		cv::Mat ranged, mask;
 		cv::inRange(corrected, c_ranges[label].first, c_ranges[label].second, ranged);
 		process(ranged, mask);

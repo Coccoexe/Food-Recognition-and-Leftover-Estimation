@@ -3,30 +3,48 @@ import clip
 import os
 from PIL import Image
 
-DEBUG = False
+DEBUG = True
 
 def constrained(values, indices):
+    if len(indices) < 2:
+        return values, indices
+
     map = [(indices[i], values[i].item(), values[i]) for i in range(len(indices))]
+
+    # if empty plate
+    if 11 in indices:
+        if map[indices.index(11)][1] > 0.8 and max([x for x in map if x[0] != 11], key=lambda x: x[1])[1] < 0.01:
+            return [map[indices.index(11)][2]], [map[indices.index(11)][0]]
+        else:
+            map = [x for x in map if x[0] != 11]
 
     map_1 = [x for x in map if x[0] in [0,1,2,3,4]]
     map_2 = [x for x in map if x[0] in [5,6,7,8]]
-    map_3 = [x for x in map if x[0] in [9,10,11,12]]
+    map_3 = [x for x in map if x[0] in [9,10]]
 
     #max from map_1
     map_1 = max(map_1, key=lambda x: x[1]) if len(map_1) > 0 else []
     map_2 = max(map_2, key=lambda x: x[1]) if len(map_2) > 0 else []
+
+    # save only the main preference over main or second dish
+    if map_1 != [] and map_2 != []:
+        if map_1[1] > map_2[1]:
+            map_2 = []
+        else:
+            map_1 = []
 
     #merge 
     v, i = [], []
     if len(map_1) > 0:
         v.append(map_1[2])
         i.append(map_1[0])
-    if len(map_2) > 0:
-        v.append(map_2[2])
-        i.append(map_2[0])
-    for x in map_3:
-        v.append(x[2])
-        i.append(x[0])
+    else:
+        if len(map_2) > 0:
+            v.append(map_2[2])
+            i.append(map_2[0])
+        for x in map_3:
+            v.append(x[2])
+            i.append(x[0])
     
     return v, i
 
@@ -84,9 +102,11 @@ def process_tray(tray, labels):
         for i in range(len(indices)):
             new_labels.append(labels[indices[i]]) if labels[indices[i]] not in new_labels else None 
 
+        if "empty plate" not in new_labels: new_labels.append("empty plate")
+
         if DEBUG:
             for i in range(len(indices)):
-                print('     ',labels[indices[i]], values[i].item())
+                print('        ',labels[indices[i]], values[i].item())
             print()
 
     # process leftovers
@@ -102,7 +122,6 @@ def process_tray(tray, labels):
             values, indices = constrained(values, indices)
 
             if not os.path.exists(out := output_folder+tray+'/leftover'+str(i)+'/'):
-                if DEBUG: print(out)
                 os.makedirs(out)
 
             with open(out+img+'.txt', 'w') as f:
@@ -111,7 +130,7 @@ def process_tray(tray, labels):
 
             if DEBUG: 
                 for j in range(len(indices)):
-                    print('     ',labels[indices[j]], values[j].item())
+                    print('        ',labels[indices[j]], values[j].item())
                 print()
 
 # the first run of this script will download the model
@@ -133,17 +152,18 @@ def main(i : int = None):
         "cuttlefish food",
         "brown beans",
         "potatoes",
+        "empty plate"
     ]
 
     device = "cuda" if torch.cuda.is_available() else "cpu"
     model, preprocess = clip.load("ViT-B/32", device=device)
 
-    if i is not None:
-	    process_tray("tray"+str(i), labels)
-
-    else:
+    if i is None:
         for tray in os.listdir(input_folder):
             process_tray(tray, labels)
+    else:
+        process_tray("tray"+str(i), labels)
+
 
 if __name__ == "__main__":
     main()

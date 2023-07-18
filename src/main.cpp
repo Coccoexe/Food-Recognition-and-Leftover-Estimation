@@ -21,7 +21,7 @@
 
 #include <Python.h>
 
-#define DEBUG false
+#define DEBUG true
 
 using namespace std;
 
@@ -121,12 +121,14 @@ int main()
 
 	// Python initialization
 	Py_Initialize();
+	PyEval_InitThreads();
 	PyRun_SimpleString("import sys");
 	PyRun_SimpleString("sys.path.append('../../../src/Python/')");
 	PyRun_SimpleString("sys.argv = ['CLIP_interface.py']");
 	PyObject* pName = PyUnicode_FromString("CLIP_interface");
-	PyObject* pModule = PyImport_Import(pName);
+	PyObject* pModule = PyImport_ImportModule("CLIP_interface");
 	PyObject* pFunc = PyObject_GetAttrString(pModule, "main");
+	PyObject* pArgs = PyTuple_New(1);
 
 	// Process
 	if (!filesystem::exists(PLATES_PATH)) filesystem::create_directory(PLATES_PATH);
@@ -147,11 +149,11 @@ int main()
 
 		// Python OpenAI CLIP classifier
 		if (DEBUG) cout << "Running Python script..." << endl;
-		PyObject* pArgs = PyTuple_New(1);
 		PyObject* pValue = PyLong_FromLong(i);
 		PyTuple_SetItem(pArgs, 0, pValue);
 		PyObject_CallObject(pFunc, pArgs);
 		if (DEBUG) cout << "Python script finished" << endl;
+
 
 		// Segmentation
 		for (const auto& imgname : IMAGE_NAMES)
@@ -189,10 +191,6 @@ int main()
 			{	// TODO: implement bread segmentation
 			}
 		}
-
-		//black image 20x20
-		cv::Mat a = cv::Mat::zeros(20, 20, CV_8UC1);
-		display(a);
 
 	}
 
