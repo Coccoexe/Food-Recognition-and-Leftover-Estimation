@@ -37,5 +37,3 @@ private:
 		std::make_pair<cv::Scalar,cv::Scalar>(cv::Scalar(0,0,0), cv::Scalar(0,0,0))				// bread //never appears in CLIP
 	};
 };
-
-// 0,151,132 - 137,213,253

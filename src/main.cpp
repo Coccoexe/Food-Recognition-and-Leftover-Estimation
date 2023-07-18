@@ -22,7 +22,7 @@
 #include <Python.h>
 
 #define DEBUG true
-#define SKIP false
+#define SKIP true
 
 using namespace std;
 
@@ -145,7 +145,6 @@ int main()
 	for (int i = 1; i <= NUMBER_OF_TRAYS; i++)
 	{	// For each tray
 
-
 		if (!filesystem::exists(PLATES_PATH + "tray" + to_string(i) + "/")) filesystem::create_directory(PLATES_PATH + "tray" + to_string(i) + "/");
 		queue<BoundingBoxes> bb;
 		for (const auto& imgname : IMAGE_NAMES)
@@ -159,6 +158,9 @@ int main()
 			for (int j = 0; j < plates.size(); j++)	cv::imwrite(PLATES_PATH + "tray" + to_string(i) + "/" + imgname + "/plate" + to_string(j) + ".jpg", cutout(image, plates[j]));
 		}
 
+
+		// Segmentation
+
 		if (!SKIP){
 		// Python OpenAI CLIP classifier
 		if (DEBUG) cout << "Running Python script..." << endl;
@@ -168,8 +170,6 @@ int main()
 		if (DEBUG) cout << "Python script finished" << endl;
 		}
 
-
-		// Segmentation
 		for (const auto& imgname : IMAGE_NAMES)
 		{	// For each image get the bounding boxes
 			cv::Mat image = cv::imread(DATASET_PATH + "tray" + to_string(i) + "/" + imgname + ".jpg");
@@ -180,6 +180,10 @@ int main()
 			vector<string> files;
 			cv::glob(PLATES_PATH + "tray" + to_string(i) + "/" + imgname + "/*.jpg", files);
 
+			// tray_mask
+			cv::Mat tray_mask = cv::Mat::zeros(image.size(), CV_8UC1);
+
+
 			// Plates
 			for (int j = 0; j < files.size(); j++)
 			{	// For each plate in the image get the labels : association(file=plate_image, labels=categories, plates[j])
@@ -188,13 +192,23 @@ int main()
 				string category;
 				while (getline(infile, category)) labels.push_back(stoi(category));
 				infile.close();
-				
+	
 				// Segmentation
 				cv::Mat plate_image = cv::imread(files[j]);
 				Segmentation seg(plate_image, labels);
 				cv::Mat mask = seg.getSegments();
 				vector<pair<int, int>> plate_areas = seg.getAreas();
 
+				for (int k = 0; k < mask.rows; k++)
+					for (int l = 0; l < mask.cols; l++)
+						if (mask.at<uchar>(k, l) != 0)
+							tray_mask.at<uchar>(k + plates[j][1] - plates[j][2], l + plates[j][0] - plates[j][2]) = mask.at<uchar>(k,l);
+						
+			}
+
+			if (DEBUG) {
+				cv::imshow("tray_mask", tray_mask * 15);
+				cv::waitKey(0);
 			}
 
 			// Salad

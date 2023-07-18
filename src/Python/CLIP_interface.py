@@ -3,7 +3,7 @@ import clip
 import os
 from PIL import Image
 
-DEBUG = True
+DEBUG = False
 
 def constrained(values, indices):
     if len(indices) < 2:
