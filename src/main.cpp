@@ -15,6 +15,7 @@
 #include <queue>
 #include <string>
 #include <vector>
+#include <cmath>
 
 #include <opencv2/opencv.hpp>
 #include <opencv2/imgproc.hpp>
@@ -201,19 +202,60 @@ int main()
 
 				for (int k = 0; k < mask.rows; k++)
 					for (int l = 0; l < mask.cols; l++)
-						if (mask.at<uchar>(k, l) != 0)
-							tray_mask.at<uchar>(k + plates[j][1] - plates[j][2], l + plates[j][0] - plates[j][2]) = mask.at<uchar>(k,l);
+						if (pow(k - plates[j][2], 2) + pow(l - plates[j][2], 2) <= pow(plates[j][2], 2)) //if (mask.at<uchar>(k,l) != 0)
+							if (k + plates[j][1] - plates[j][2] >= 0 && k + plates[j][1] - plates[j][2] < tray_mask.rows && l + plates[j][0] - plates[j][2] >= 0 && l + plates[j][0] - plates[j][2] < tray_mask.cols)
+								tray_mask.at<uchar>(k + plates[j][1] - plates[j][2], l + plates[j][0] - plates[j][2]) = mask.at<uchar>(k,l);
 						
 			}
 
 			if (DEBUG) {
-				cv::imshow("tray_mask", tray_mask * 15);
-				cv::waitKey(0);
+				//cv::imshow("tray_mask", tray_mask * 15);
+				//cv::waitKey(0);
 			}
 
 			// Salad
 			if (salad.first)
 			{	// TODO: implement salad segmentation
+				cv::Mat salad_image = cutout(image, salad.second);
+
+				//gamma correction
+				cv::Mat gamma;
+				cv::Mat lookUpTable(1, 256, CV_8U);
+				uchar* p = lookUpTable.ptr();
+				double gamma_ = 0.5;
+				for (int i = 0; i < 256; ++i)
+					p[i] = cv::saturate_cast<uchar>(pow(i / 255.0, gamma_) * 255.0);
+				cv::LUT(salad_image, lookUpTable, gamma);
+
+				//to hsv
+				cv::Mat hsv;
+				cv::cvtColor(gamma, hsv, cv::COLOR_BGR2HSV);
+				vector<cv::Mat> hsv_channels;
+				cv::split(hsv, hsv_channels);
+				cv::equalizeHist(hsv_channels[1], hsv_channels[1]);
+				
+				int sat = 206;
+
+				cv::Mat mask;
+				cv::threshold(hsv_channels[1], mask, sat, 12, cv::THRESH_BINARY);
+				mask = process(mask, salad_image);
+
+				if (DEBUG)
+				{
+					cv::imshow("mask", mask);
+					cv::waitKey(0);
+				}
+
+				for (int k = 0; k < mask.rows; k++)
+					for (int l = 0; l < mask.cols; l++)
+						if (pow(k - salad.second[2],2) + pow(l - salad.second[2],2) <= pow(salad.second[2],2))
+							if (k + salad.second[1] - salad.second[2] >= 0 && k + salad.second[1] - salad.second[2] < tray_mask.rows && l + salad.second[0] - salad.second[2] >= 0 && l + salad.second[0] - salad.second[2] < tray_mask.cols)
+								tray_mask.at<uchar>(k + salad.second[1] - salad.second[2], l + salad.second[0] - salad.second[2]) = mask.at<uchar>(k, l);
+
+				if (DEBUG) {
+					cv::imshow("tray_mask", tray_mask * 15);
+					cv::waitKey(0);
+				}
 			}
 
 			// Bread
