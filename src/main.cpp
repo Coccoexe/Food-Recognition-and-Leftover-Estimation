@@ -22,6 +22,7 @@
 #include <Python.h>
 
 #define DEBUG true
+#define SKIP true
 
 using namespace std;
 
@@ -134,6 +135,8 @@ int main()
 	if (!filesystem::exists(PLATES_PATH)) filesystem::create_directory(PLATES_PATH);
 	for (int i = 1; i <= NUMBER_OF_TRAYS; i++)
 	{	// For each tray
+
+
 		if (!filesystem::exists(PLATES_PATH + "tray" + to_string(i) + "/")) filesystem::create_directory(PLATES_PATH + "tray" + to_string(i) + "/");
 		queue<BoundingBoxes> bb;
 		for (const auto& imgname : IMAGE_NAMES)
@@ -147,12 +150,14 @@ int main()
 			for (int j = 0; j < plates.size(); j++)	cv::imwrite(PLATES_PATH + "tray" + to_string(i) + "/" + imgname + "/plate" + to_string(j) + ".jpg", cutout(image, plates[j]));
 		}
 
+		if (!SKIP){
 		// Python OpenAI CLIP classifier
 		if (DEBUG) cout << "Running Python script..." << endl;
 		PyObject* pValue = PyLong_FromLong(i);
 		PyTuple_SetItem(pArgs, 0, pValue);
 		PyObject_CallObject(pFunc, pArgs);
 		if (DEBUG) cout << "Python script finished" << endl;
+		}
 
 
 		// Segmentation

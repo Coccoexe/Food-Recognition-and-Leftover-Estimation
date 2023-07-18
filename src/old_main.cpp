@@ -201,7 +201,7 @@ int main()
 
 	if (!TEST)
 	{
-		img = cv::imread(input + "tray1/food_image.jpg");
+		img = cv::imread(input + "tray6/food_image.jpg");
 		//img = cv::imread("C:\\Users\\alessio\\Desktop\\plate0.jpg");
 
 		//gamma transform
@@ -226,6 +226,7 @@ int main()
 		cv::merge(hsv_channels, hsv_enhanced);
 		cv::cvtColor(hsv_enhanced, hsv_enhanced, cv::COLOR_HSV2BGR);
 
+		/*
 		//bounding boxes
 		vector<pair<int, cv::Rect>> bounding_boxes;
 		bounding_boxes.push_back(make_pair(1, cv::Rect(250, 430, 460, 460)));
@@ -273,6 +274,7 @@ int main()
 		cv::addWeighted(tmp, 1, msk1, 0.5, 0, tmp);
 		cv::imshow("foreground", tmp);
 		cv::waitKey(0);
+		*/
 
 		int bMin = 0;
 		int bMax = 255;

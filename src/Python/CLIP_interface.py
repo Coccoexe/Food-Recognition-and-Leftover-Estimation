@@ -148,7 +148,7 @@ def main(i : int = None):
         "pilaw rice with peppers and peas",
         "pork meat slices",
         "fish cutlet",
-        "rabbit with bones",
+        "roasted rabbit and bones",
         "cuttlefish food",
         "brown beans",
         "potatoes",

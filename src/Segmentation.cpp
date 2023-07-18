@@ -15,6 +15,7 @@ Segmentation::Segmentation(cv::Mat& p, std::vector<int> l)
 	{
 		cv::Mat ranged, mask;
 		cv::inRange(corrected, c_ranges[label].first, c_ranges[label].second, ranged);
+		//cv::imshow("ranged", ranged);
 		process(ranged, mask);
 		cv::threshold(mask, mask, 0, label*15, cv::THRESH_BINARY);
 		segments = segments | mask;
@@ -69,20 +70,25 @@ void Segmentation::process(cv::Mat& in, cv::Mat& out)
 	cv::medianBlur(in, in, 5);
 
 	//closing
-	cv::Mat kernel = cv::getStructuringElement(cv::MORPH_ELLIPSE, cv::Size(40, 40));
+	cv::Mat kernel = cv::getStructuringElement(cv::MORPH_ELLIPSE, cv::Size(30, 30)); //changed from 40x40
 	cv::morphologyEx(in, in, cv::MORPH_CLOSE, kernel);
 
 	//dilation
 	out = cv::Mat::zeros(in.size(), CV_8UC1);
 	filterAreas(in, out, 8000);
-	cv::dilate(out, out, cv::getStructuringElement(cv::MORPH_ELLIPSE, cv::Size(15, 15)));
+	cv::dilate(out, out, cv::getStructuringElement(cv::MORPH_ELLIPSE, cv::Size(20, 20))); //changed from 15x15
 
 	//closing
-	kernel = cv::getStructuringElement(cv::MORPH_ELLIPSE, cv::Size(15, 15));
+	kernel = cv::getStructuringElement(cv::MORPH_ELLIPSE, cv::Size(25, 25)); //changed from 15x15
 	cv::morphologyEx(out, out, cv::MORPH_CLOSE, kernel);
 
 	//filling holes
 	fillHoles(out);
+
+	//cv::Mat original;
+	//cv::bitwise_and(plate, plate, original, out);
+	//cv::imshow("original", original);
+	//cv::waitKey(0);
 
 	return;
 }
