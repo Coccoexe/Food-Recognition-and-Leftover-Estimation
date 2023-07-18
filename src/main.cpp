@@ -22,7 +22,7 @@
 #include <Python.h>
 
 #define DEBUG true
-#define SKIP true
+#define SKIP false
 
 using namespace std;
 
@@ -193,6 +193,8 @@ int main()
 				cv::Mat plate_image = cv::imread(files[j]);
 				Segmentation seg(plate_image, labels);
 				cv::Mat mask = seg.getSegments();
+				vector<pair<int, int>> plate_areas = seg.getAreas();
+
 			}
 
 			// Salad

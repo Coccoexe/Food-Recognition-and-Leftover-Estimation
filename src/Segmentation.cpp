@@ -1,5 +1,7 @@
 # include "Segmentation.hpp"
 
+#define DEBUG false
+
 Segmentation::Segmentation(cv::Mat& p, std::vector<int> l)
 	: plate(p), labels(l)
 {
@@ -8,7 +10,7 @@ Segmentation::Segmentation(cv::Mat& p, std::vector<int> l)
 	//correction
 	cv::Mat corrected;
 	correction(plate, corrected);
-	cv::imshow("corrected", corrected);
+	if (DEBUG) cv::imshow("corrected", corrected);
 
 	//segmentation
 	for (const auto label : labels)
@@ -45,29 +47,25 @@ Segmentation::Segmentation(cv::Mat& p, std::vector<int> l)
 			mask = mask_tmp;
 		}
 
-		//if (label > 0 && label < 6)
-		//{
-		//	cv::threshold(mask, mask, 0, 1, cv::THRESH_BINARY);
-		//	cv::Mat gray = cv::Mat::zeros(plate.size(), CV_8UC1);
-		//	gray.setTo(cv::GC_PR_BGD);
-		//	cv::Mat somma;
-		//	cv::addWeighted(mask, 1, gray, 1, 0, somma);
-		//	cv::Mat bgdModel, fgdModel;
-		//	cv::grabCut(plate, somma, cv::Rect(), bgdModel, fgdModel, 3, cv::GC_INIT_WITH_MASK);
-		//	cv::Mat1b mask_fgpf = (somma == cv::GC_FGD) | (somma == cv::GC_PR_FGD);
-		//	cv::Mat3b tmp = cv::Mat3b::zeros(plate.rows, plate.cols);
-		//	plate.copyTo(tmp, mask_fgpf);
-		//	cv::erode(tmp, tmp, cv::Mat());
-		//	cv::cvtColor(tmp, mask, cv::COLOR_BGR2GRAY);
-		//}
+		cv::threshold(mask, mask, 0, label, cv::THRESH_BINARY);
+		mask = mask - segments * 255;
+		segments = segments | mask;
 
-		cv::threshold(mask, mask, 0, label * 15, cv::THRESH_BINARY);
-		//segments = segments | mask;
-		segments = segments | (mask - segments * 255);
+		//find area of mask
+		std::vector<std::vector<cv::Point>> contours;
+		cv::findContours(mask, contours, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
+		int area = 0;
+		for (const auto& contour : contours)
+			area += cv::contourArea(contour);
+		areas.push_back(std::make_pair(label, area));
+
 	}
-	cv::imshow("segments", segments);
-	cv::waitKey(0);
-	cv::destroyAllWindows();
+	if (DEBUG)
+	{
+		cv::imshow("segments", segments * 15);
+		cv::waitKey(0);
+		cv::destroyAllWindows();
+	}
 }
 
 void Segmentation::correction(cv::Mat& in, cv::Mat& out)

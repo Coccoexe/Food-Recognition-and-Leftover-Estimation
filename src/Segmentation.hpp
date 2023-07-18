@@ -9,11 +9,13 @@ class Segmentation
 public:
 	Segmentation(cv::Mat& p, std::vector<int> l);
 	cv::Mat getSegments() const { return segments; }
+	std::vector<std::pair<int, int>> getAreas() const { return areas; }
 
 private:
 	cv::Mat plate;
 	const std::vector<int> labels;
 	cv::Mat segments;
+	std::vector<std::pair<int, int>> areas;
 	void correction(cv::Mat& in, cv::Mat& out);
 	void process(cv::Mat& ranged, cv::Mat& out);
 
@@ -27,7 +29,7 @@ private:
 		std::make_pair<cv::Scalar,cv::Scalar>(cv::Scalar(56,153,187), cv::Scalar(101,191,245)), // pilaw rice with peppers and peas
 		std::make_pair<cv::Scalar,cv::Scalar>(cv::Scalar(45,128,187),cv::Scalar(108,161,215)),	// grilled pork cutlet
 		std::make_pair<cv::Scalar,cv::Scalar>(cv::Scalar(0,0,205), cv::Scalar(101,147,255)),	// fish cutlet
-		std::make_pair<cv::Scalar,cv::Scalar>(cv::Scalar(0,68,154), cv::Scalar(38,108,234)),//0,45,140), cv::Scalar(35,100,165)),	// rabbit
+		std::make_pair<cv::Scalar,cv::Scalar>(cv::Scalar(0,68,154), cv::Scalar(38,108,234)),	// rabbit
 		std::make_pair<cv::Scalar,cv::Scalar>(cv::Scalar(0,28,139), cv::Scalar(62,92,255)),		// seafood salad
 		std::make_pair<cv::Scalar,cv::Scalar>(cv::Scalar(14,38,0),cv::Scalar(24,71,180)),		// beans
 		std::make_pair<cv::Scalar,cv::Scalar>(cv::Scalar(0,156,158), cv::Scalar(104,255,219)),	// basil potatoes
