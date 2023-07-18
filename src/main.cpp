@@ -117,7 +117,16 @@ int main()
 		const int y = cvRound(circle[1] - circle[2]) > 0 ? cvRound(circle[1] - circle[2]) : 0;
 		const int w = x + cvRound(2 * circle[2]) < image.cols ? cvRound(2 * circle[2]) : image.cols - x;
 		const int h = y + cvRound(2 * circle[2]) < image.rows ? cvRound(2 * circle[2]) : image.rows - y;
-		return image(cv::Rect(x, y, w, h));
+		//std::cout << x << " " << y << " " << w << " " << h << std::endl;
+		//return image(cv::Rect(x, y, w, h));
+		
+		//return image inside circle
+		cv::Mat mask = cv::Mat::zeros(image.size(), CV_8UC1);
+		cv::circle(mask, cv::Point(cvRound(circle[0]), cvRound(circle[1])), cvRound(circle[2]), cv::Scalar(255), -1);
+		cv::Mat res;
+		image.copyTo(res, mask);
+		return res(cv::Rect(x,y,w,h));
+
 	};
 
 	// Python initialization

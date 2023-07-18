@@ -64,16 +64,16 @@ cv::Mat process(cv::Mat msk1, cv::Mat imaaasss) {
 	cv::medianBlur(msk1, msk1, 5);
 
 	//closing
-	cv::Mat kernel = cv::getStructuringElement(cv::MORPH_ELLIPSE, cv::Size(40, 40));
+	cv::Mat kernel = cv::getStructuringElement(cv::MORPH_ELLIPSE, cv::Size(50, 50));
 	cv::morphologyEx(msk1, msk1, cv::MORPH_CLOSE, kernel);
 
 	//dilation
 	cv::Mat a = cv::Mat::zeros(msk1.size(), CV_8UC1);
 	filterAreas(msk1, a, 8000);
-	cv::dilate(a, a, cv::getStructuringElement(cv::MORPH_ELLIPSE, cv::Size(15, 15)));
+	cv::dilate(a, a, cv::getStructuringElement(cv::MORPH_ELLIPSE, cv::Size(25, 25)));
 
 	//closing
-	kernel = cv::getStructuringElement(cv::MORPH_ELLIPSE, cv::Size(15, 15));
+	kernel = cv::getStructuringElement(cv::MORPH_ELLIPSE, cv::Size(40, 40));
 	cv::morphologyEx(a, a, cv::MORPH_CLOSE, kernel);
 
 	//filling holes
@@ -201,8 +201,8 @@ int main()
 
 	if (!TEST)
 	{
-		img = cv::imread(input + "tray6/food_image.jpg");
-		//img = cv::imread("C:\\Users\\alessio\\Desktop\\plate0.jpg");
+		//img = cv::imread(input + "tray6/food_image.jpg");
+		img = cv::imread("C:\\Users\\alessio\\Desktop\\Project\\Food-Recognition-and-Leftover-Estimation\\out\\build\\x64-release\\plates\\tray5\\food_image\\plate0.jpg");
 
 		//gamma transform
 		cv::Mat gamma;
