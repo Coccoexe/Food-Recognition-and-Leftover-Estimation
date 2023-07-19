@@ -1,4 +1,4 @@
-// Alessio Cocco 2087635, Andrea Valentinuzzi 2090451, Giovanni Brejc
+// Alessio Cocco 2087635, Andrea Valentinuzzi 2090451, Giovanni Brejc 2096046
 // Computer Vision final project 2022/2023 University of Padua
 // Food Recognition and Leftover Estimation
 //
@@ -24,8 +24,8 @@
 
 #include <Python.h>
 
-#define DEBUG false
-#define SKIP false	// avoid processing of CLIP
+#define DEBUG true
+#define SKIP true	// avoid processing of CLIP
 
 using namespace std;
 
@@ -109,6 +109,7 @@ int main()
 	const string PLATES_PATH = "./plates/";
 	const string BREAD_PATH = "./bread/";
 	const string LABELS_PATH = "./labels/";
+	const string BREAD_OUT_PATH = "./bread_output/";
 	const string OUTPUT_PATH = "./output/";
 	auto cutout = [](const cv::Mat& image, const cv::Vec3f& circle) -> cv::Mat
 	{
@@ -286,19 +287,32 @@ int main()
 				}
 			}
 
+			// Bread detection qith CLIP
+			if (!SKIP)
+			{
+				// Python OpenAI CLIP classifier
+				if (DEBUG) cout << "Running Python script..." << endl;
+				PyObject* pValue = PyLong_FromLong(i);
+				PyTuple_SetItem(pArgs, 0, pValue);
+				PyObject_CallObject(pFunc_bread, pArgs);
+				if (DEBUG) cout << "Python script finished" << endl;
+			}
+
 			// Bread
-			if (true) // TODO: change false to check if there is the correspondiong image file with con fidenc score in the folder bread_output
+			if (!filesystem::is_empty(BREAD_OUT_PATH + "tray" + to_string(i) + "/" + imgname + "/"))
 			{	// TODO: implement bread segmentation
 
-				if (!SKIP)
-				{
-					// Python OpenAI CLIP classifier
-					if (DEBUG) cout << "Running Python script..." << endl;
-					PyObject* pValue = PyLong_FromLong(i);
-					PyTuple_SetItem(pArgs, 0, pValue);
-					PyObject_CallObject(pFunc_bread, pArgs);
-					if (DEBUG) cout << "Python script finished" << endl;
-				}
+				// get files in directory
+				vector<string> files;
+				for (const auto& entry : filesystem::directory_iterator(BREAD_OUT_PATH + "tray" + to_string(i) + "/" + imgname + "/"))
+					files.push_back(entry.path().string());
+				string breadimg = files[0].substr(0, files[0].size() - 4);	//remove .txt
+				breadimg.replace(0, BREAD_OUT_PATH.size(), BREAD_PATH);		//replace path
+
+				// read image
+				cv::Mat bread = cv::imread(breadimg);
+				cv::imshow("bread", bread);
+				cv::waitKey(0);
 
 				// TESTS DOWN HERE
 				//gamma correction
@@ -309,11 +323,11 @@ int main()
 				double gamma_ = 0.5;
 				for (int i = 0; i < 256; ++i)
 					p[i] = cv::saturate_cast<uchar>(pow(i / 255.0, gamma_) * 255.0);
-				cv::LUT(image, lookUpTable, gamma);
+				cv::LUT(bread, lookUpTable, gamma);
 
-				cv::circle(gamma, cv::Point(salad.second[0], salad.second[1]), salad.second[2], cv::Scalar(0, 0, 0), -1);
-				for (const auto circle : plates)
-					cv::circle(gamma, cv::Point(circle[0], circle[1]), circle[2], cv::Scalar(0, 0, 0), -1);
+				//cv::circle(gamma, cv::Point(salad.second[0], salad.second[1]), salad.second[2], cv::Scalar(0, 0, 0), -1);
+				//for (const auto circle : plates)
+				//	cv::circle(gamma, cv::Point(circle[0], circle[1]), circle[2], cv::Scalar(0, 0, 0), -1);
 
 				//to hsv
 				cv::Mat hsv;
@@ -321,14 +335,15 @@ int main()
 				vector<cv::Mat> hsv_channels;
 				cv::split(hsv, hsv_channels);
 				cv::equalizeHist(hsv_channels[1], hsv_channels[1]);
+				cv::merge(hsv_channels, hsv);
 
-				int sat = 190;
-				int bMin = 130;
-				int bMax = 230;
-				int gMin = 180;
-				int gMax = 240;
-				int rMin = 184;
-				int rMax = 255;
+				int sat = 182;
+				int bMin = 170;
+				int bMax = 220;
+				int gMin = 177;
+				int gMax = 220;
+				int rMin = 185;
+				int rMax = 230;
 
 				cv::namedWindow("trackbars", cv::WINDOW_NORMAL);
 				cv::createTrackbar("sat", "trackbars", &sat, 255);
@@ -343,14 +358,20 @@ int main()
 				while (DEBUG)
 				{
 					cv::Mat satr, ranged, original_sat, original_ran, mask;
-					cv::threshold(hsv_channels[1], satr, sat, 13, cv::THRESH_BINARY);
-					satr = process(satr);
-					cv::copyTo(gamma, original_sat, satr);
-					cv::inRange(original_sat, cv::Scalar(bMin, gMin, rMin), cv::Scalar(bMax, gMax, rMax), ranged);
-					mask = process(ranged);
-					cv::copyTo(gamma, original_ran, mask);
-					cv::imshow("ranged", original_ran);
+					//cv::threshold(hsv_channels[1], satr, sat, 13, cv::THRESH_BINARY);
+					//satr = process(satr);
+					//cv::copyTo(gamma, original_sat, satr);
+					//cv::inRange(original_sat, cv::Scalar(bMin, gMin, rMin), cv::Scalar(bMax, gMax, rMax), ranged);
+					//mask = process(ranged);
+					//cv::copyTo(gamma, original_ran, mask);
+					//cv::imshow("ranged", original_ran);
+					cv::inRange(hsv, cv::Scalar(bMin, gMin, rMin), cv::Scalar(bMax, gMax, rMax), mask);
+					cv::imshow("filtered", mask);
 
+					cv::Mat original;
+					cv::bitwise_and(hsv, hsv, original, mask);
+
+					cv::imshow("original", original);
 					
 					if (cv::waitKey(1) == 27) break;
 
