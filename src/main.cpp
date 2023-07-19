@@ -167,7 +167,7 @@ int main()
 		}
 
 		// Plates segmentation
-		if (SKIP)
+		if (!SKIP)
 		{
 			// Python OpenAI CLIP classifier
 			if (DEBUG) cout << "Running Python script..." << endl;
@@ -290,7 +290,7 @@ int main()
 			if (true) // TODO: change false to check if there is the correspondiong image file with con fidenc score in the folder bread_output
 			{	// TODO: implement bread segmentation
 
-				if (SKIP)
+				if (!SKIP)
 				{
 					// Python OpenAI CLIP classifier
 					if (DEBUG) cout << "Running Python script..." << endl;
