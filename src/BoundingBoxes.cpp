@@ -39,18 +39,15 @@ BoundingBoxes::BoundingBoxes(const cv::Mat& input)
 	if (DEBUG) for (const auto& circle : salad_circles) cv::circle(debug_image, cv::Point(cvRound(circle[0]), cvRound(circle[1])), cvRound(circle[2]), cv::Scalar(0, 255, 0), 2);
 
 	// 3. Detect bread (if exists): width/BREAD_FACTOR * height/BREAD_FACTOR rectangles with strides of width/(2*BREAD_FACTOR) and height/(2*BREAD_FACTOR)
-	for (int x = 0; x < source_image.cols; x += source_image.cols / (2 * BREAD_FACTOR))
-		for (int y = 0; y < source_image.rows; y += source_image.rows / (2 * BREAD_FACTOR))
-		{
-			bread.push_back(cv::Rect(x, y,
-				x + source_image.cols / BREAD_FACTOR > source_image.cols // Check if we are at the last rectangle of the row
-					? source_image.cols - x                              // If so, set the width to the remaining width
-					: source_image.cols / BREAD_FACTOR,                  // If not, set the width to the default width
-				y + source_image.rows / BREAD_FACTOR > source_image.rows // Check if we are at the last rectangle of the col
-					? source_image.rows - y                              // If so, set the height to the remaining height
-					: source_image.rows / BREAD_FACTOR                   // If not, set the height to the default height
-			));
+	int x = 0, y = 0, dx = source_image.cols / BREAD_FACTOR, dy = source_image.rows / BREAD_FACTOR, sx = source_image.cols / (2 * BREAD_FACTOR), sy = source_image.rows / (2 * BREAD_FACTOR);
+	for (int i = 0; i < 2 * BREAD_FACTOR - 1; i++) {
+		for (int j = 0; j < 2 * BREAD_FACTOR - 1; j++) {
+			bread.push_back(cv::Rect(x, y, dx, dy));
+			x += sx;
 		}
+		x = 0;
+		y += sy;
+	}
 	if (DEBUG) for (const auto& rect : bread) cv::rectangle(debug_image, rect, cv::Scalar(0, 0, 255), 2);
 
 	// Show debug image
