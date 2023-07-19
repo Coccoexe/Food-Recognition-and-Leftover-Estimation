@@ -24,93 +24,28 @@
 
 #include <Python.h>
 
-#define DEBUG true
-#define SKIP true	// avoid processing of CLIP
+#define DEBUG true // debug mode to check code logic
+#define SKIP false  // avoid CLIP processing to save time while developing
 
 using namespace std;
-
-void display(cv::Mat img)
-{
-	cv::namedWindow("Display window", cv::WINDOW_AUTOSIZE);
-	cv::imshow("Display window", img);
-	cv::waitKey(0);
-}
-
-void k_means(cv::Mat img, cv::Mat out, int k)
-{
-	cv::Mat samples(img.rows * img.cols, 3, CV_32F);
-	for (int y = 0; y < img.rows; y++)
-		for (int x = 0; x < img.cols; x++)
-			for (int z = 0; z < 3; z++)
-				samples.at<float>(y + x * img.rows, z) = img.at<cv::Vec3b>(y, x)[z];
-
-	cv::Mat labels;
-	int attempts = 5;
-	cv::Mat centers;
-	cv::kmeans(samples, k, labels, cv::TermCriteria(cv::TermCriteria::EPS + cv::TermCriteria::COUNT, 10000, 0.0001), attempts, cv::KMEANS_PP_CENTERS, centers);
-
-	for (int y = 0; y < img.rows; y++)
-		for (int x = 0; x < img.cols; x++)
-		{
-			int cluster_idx = labels.at<int>(y + x * img.rows, 0);
-			out.at<cv::Vec3b>(y, x)[0] = centers.at<float>(cluster_idx, 0);
-			out.at<cv::Vec3b>(y, x)[1] = centers.at<float>(cluster_idx, 1);
-			out.at<cv::Vec3b>(y, x)[2] = centers.at<float>(cluster_idx, 2);
-		}
-}
-
-cv::Mat process(cv::Mat msk1) {
-	auto filterAreas = [](const cv::Mat& input, cv::Mat& output, const unsigned int threshold) -> void
-	{
-		std::vector<std::vector<cv::Point>> c;
-
-		cv::findContours(input.clone(), c, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
-		for (int i = 0; i < c.size(); i++)
-			if (cv::contourArea(c[i]) > threshold)
-				cv::drawContours(output, c, i, 255, -1);
-	};
-
-	auto fillHoles = [](cv::Mat& input) -> void
-	{
-		cv::Mat ff = input.clone();
-		cv::floodFill(ff, cv::Point(0, 0), cv::Scalar(255));
-		cv::Mat inversed_ff;
-		cv::bitwise_not(ff, inversed_ff);
-		input = (input | inversed_ff);
-	};
-	//median
-	cv::medianBlur(msk1, msk1, 5);
-
-	//closing
-	cv::Mat kernel = cv::getStructuringElement(cv::MORPH_ELLIPSE, cv::Size(40, 40));
-	cv::morphologyEx(msk1, msk1, cv::MORPH_CLOSE, kernel);
-
-	//dilation
-	cv::Mat a = cv::Mat::zeros(msk1.size(), CV_8UC1);
-	filterAreas(msk1, a, 8000);
-	cv::dilate(a, a, cv::getStructuringElement(cv::MORPH_ELLIPSE, cv::Size(15, 15)));
-
-	//closing
-	kernel = cv::getStructuringElement(cv::MORPH_ELLIPSE, cv::Size(15, 15));
-	cv::morphologyEx(a, a, cv::MORPH_CLOSE, kernel);
-
-	//filling holes
-	fillHoles(a);
-
-	return a;
-}
 
 int main()
 {	
 	// Variables
-	const string DATASET_PATH = "./Food_leftover_dataset/";
-	const int NUMBER_OF_TRAYS = 8;
-	const vector<string> IMAGE_NAMES = { "food_image", "leftover1", "leftover2", "leftover3" };
-	const string PLATES_PATH = "./plates/";
-	const string BREAD_PATH = "./bread/";
-	const string LABELS_PATH = "./labels/";
-	const string BREAD_OUT_PATH = "./bread_output/";
-	const string OUTPUT_PATH = "./output/";
+	const string           DATASET_PATH      =   "./Food_leftover_dataset/";						        // 
+	const int              NUMBER_OF_TRAYS   =   8;														    //     ____        __  __        
+	const vector<string>   IMAGE_NAMES       =   { "food_image", "leftover1", "leftover2", "leftover3" };   //    / __ \____ _/ /_/ /_  _____
+	const string           PLATES_PATH       =   "./plates/";											    //   / /_/ / __ `/ __/ __ \/ ___/
+	const string           BREAD_PATH        =   "./bread/";											    //  / ____/ /_/ / /_/ / / (__  ) 
+	const string           LABELS_PATH       =   "./labels/";											    // /_/    \__,_/\__/_/ /_/____/  
+	const string           BREAD_OUT_PATH    =   "./bread_output/";										    //                               
+	const string           OUTPUT_PATH       =   "./output/";											    // 
+	vector<vector<tuple<                   // for each tray, for each image, tuple that contains:
+			cv::Mat,                       // found mask
+			vector<pair<int, cv::Rect>>,   // found boxes = vector of <class, bounding box>
+			cv::Mat,                       // ground truth mask
+			vector<pair<int, cv::Rect>>    // ground truth boxes = vector of <class, bounding box>
+		>>> metrics;                       // name of this abomination is metrics
 	auto cutout = [](const cv::Mat& image, const cv::Vec3f& circle) -> cv::Mat
 	{
 		const int x = cvRound(circle[0] - circle[2]) > 0 ? cvRound(circle[0] - circle[2]) : 0;
@@ -128,49 +63,96 @@ int main()
 		return res(cv::Rect(x,y,w,h));
 
 	};
+	auto display = [](const cv::Mat& image) -> void
+	{
+		cv::namedWindow("Display window", cv::WINDOW_AUTOSIZE);
+		cv::imshow("Display window", image);
+		cv::waitKey(0);
+	};
+	auto process = [](cv::Mat& mask) -> cv::Mat
+	{
+		// Variables
+		cv::Mat output = cv::Mat::zeros(mask.size(), CV_8UC1);
+		const unsigned int BLUR_STRENGTH = 5;
+		const unsigned int INITIAL_KERNEL_SIZE = 40;
+		const unsigned int AREA_THRESHOLD = 8000;
+		const unsigned int KERNEL_SIZE = 15;
+		auto filterAreas = [](const cv::Mat& input, cv::Mat& output, const unsigned int threshold) -> void
+		{
+			std::vector<std::vector<cv::Point>> c;
 
-	// Python initialization
-	Py_Initialize();
-	PyEval_InitThreads();
-	PyRun_SimpleString("import sys");
-	PyRun_SimpleString("sys.path.append('../../../src/Python/')");
-	PyRun_SimpleString("sys.argv = ['CLIP_interface.py']");
-	PyObject* pName = PyUnicode_FromString("CLIP_interface");
-	PyObject* pModule = PyImport_ImportModule("CLIP_interface");
-	PyObject* pFunc = PyObject_GetAttrString(pModule, "plates");
-	PyObject* pFunc_bread = PyObject_GetAttrString(pModule, "bread");
-	PyObject* pArgs = PyTuple_New(1);
+			cv::findContours(input.clone(), c, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
+			for (int i = 0; i < c.size(); i++)
+				if (cv::contourArea(c[i]) > threshold)
+					cv::drawContours(output, c, i, 255, -1);
+		};
+		auto fillHoles = [](cv::Mat& input) -> void
+		{
+			cv::Mat ff = input.clone();
+			cv::floodFill(ff, cv::Point(0, 0), cv::Scalar(255));
+			cv::Mat inversed_ff;
+			cv::bitwise_not(ff, inversed_ff);
+			input = (input | inversed_ff);
+		};
 
-	// Process
-	if (!filesystem::exists(PLATES_PATH)) filesystem::create_directory(PLATES_PATH);
+		// Morphological operations
+		cv::medianBlur(mask, mask, BLUR_STRENGTH);
+		cv::morphologyEx(mask, mask, cv::MORPH_CLOSE, cv::getStructuringElement(cv::MORPH_ELLIPSE, cv::Size(INITIAL_KERNEL_SIZE, INITIAL_KERNEL_SIZE)));
+		filterAreas(mask, output, AREA_THRESHOLD);
+		cv::dilate(output, output, cv::getStructuringElement(cv::MORPH_ELLIPSE, cv::Size(KERNEL_SIZE, KERNEL_SIZE)));
+		cv::morphologyEx(output, output, cv::MORPH_CLOSE, cv::getStructuringElement(cv::MORPH_ELLIPSE, cv::Size(KERNEL_SIZE, KERNEL_SIZE)));
+		fillHoles(output);
+
+		return output;
+	};
+
+	// Python initialization for CLIP
+	Py_Initialize();												    //
+	PyEval_InitThreads();											    //
+	PyRun_SimpleString("import sys");								    //     ____        __  __
+	PyRun_SimpleString("sys.path.append('../../../src/Python/')");	    //    / __ \__  __/ /_/ /_  ____  ____
+	PyRun_SimpleString("sys.argv = ['CLIP_interface.py']");			    //   / /_/ / / / / __/ __ \/ __ \/ __ \*
+	PyObject* pName = PyUnicode_FromString("CLIP_interface");		    //  / ____/ /_/ / /_/ / / / /_/ / / / /
+	PyObject* pModule = PyImport_ImportModule("CLIP_interface");	    // /_/    \__, /\__/_/ /_/\____/_/ /_/
+	PyObject* pFunc = PyObject_GetAttrString(pModule, "plates");	    //       /____/
+	PyObject* pFunc_bread = PyObject_GetAttrString(pModule, "bread");   //
+	PyObject* pArgs = PyTuple_New(1);								    //
+
+	// START OF THE MAIN LOOP
+	if (!filesystem::exists(PLATES_PATH)) filesystem::create_directory(PLATES_PATH); 
 	if (!filesystem::exists(OUTPUT_PATH)) filesystem::create_directory(OUTPUT_PATH);
 	if (!filesystem::exists(BREAD_PATH)) filesystem::create_directory(BREAD_PATH);
-	for (int i = 1; i <= NUMBER_OF_TRAYS; i++)
-	{	// For each tray
 
+	for (int i = 1; i <= NUMBER_OF_TRAYS; i++)
+	{	// For each tray [i]
+		metrics.push_back(vector<tuple<cv::Mat, vector<pair<int, cv::Rect>>, cv::Mat, vector<pair<int, cv::Rect>>>>());   // Create a vector of metrics for each tray [i]
 		if (!filesystem::exists(PLATES_PATH + "tray" + to_string(i) + "/")) filesystem::create_directory(PLATES_PATH + "tray" + to_string(i) + "/");
 		if (!filesystem::exists(OUTPUT_PATH + "tray" + to_string(i) + "/")) filesystem::create_directory(OUTPUT_PATH + "tray" + to_string(i) + "/");
 		if (!filesystem::exists(BREAD_PATH + "tray" + to_string(i) + "/")) filesystem::create_directory(BREAD_PATH + "tray" + to_string(i) + "/");
-		queue<BoundingBoxes> bb;
+
+		queue<BoundingBoxes> bb;   // Queue of BoundingBoxes objects: create them now and pop them later when processing
+
+		// Read images and create BoundingBoxes objects
 		for (const auto& imgname : IMAGE_NAMES)
-		{	// For each image
+		{	// For each image 'imgname' in tray [i]
 			if (!filesystem::exists(PLATES_PATH + "tray" + to_string(i) + "/" + imgname + "/")) filesystem::create_directory(PLATES_PATH + "tray" + to_string(i) + "/" + imgname + "/");
 			if (!filesystem::exists(BREAD_PATH + "tray" + to_string(i) + "/" + imgname + "/")) filesystem::create_directory(BREAD_PATH + "tray" + to_string(i) + "/" + imgname + "/");
-			cv::Mat image = cv::imread(DATASET_PATH + "tray" + to_string(i) + "/" + imgname + ".jpg");
-			bb.push(BoundingBoxes(image));
+			
+			cv::Mat image = cv::imread(DATASET_PATH + "tray" + to_string(i) + "/" + imgname + ".jpg");   // Read the image
+			bb.push(BoundingBoxes(image));                                                               // Push the BoundingBoxes object into the queue
+			
+			// Save plates and bread cutouts
 			vector<cv::Vec3f> plates = bb.back().getPlates();
 			std::vector<cv::Rect> bread = bb.back().getBread();
 
-			// Save plates cutouts
-			for (int j = 0; j < plates.size(); j++)	cv::imwrite(PLATES_PATH + "tray" + to_string(i) + "/" + imgname + "/plate" + to_string(j) + ".jpg", cutout(image, plates[j]));
-			// Save bread cutouts
-			for (int j = 0; j < bread.size(); j++)	cv::imwrite(BREAD_PATH + "tray" + to_string(i) + "/" + imgname + "/bread" + to_string(j) + ".jpg", image(bread[j]));
+			for (int j = 0; j < plates.size(); j++)
+				cv::imwrite(PLATES_PATH + "tray" + to_string(i) + "/" + imgname + "/plate" + to_string(j) + ".jpg", cutout(image, plates[j]));
+			for (int j = 0; j < bread.size(); j++)
+				cv::imwrite(BREAD_PATH + "tray" + to_string(i) + "/" + imgname + "/bread" + to_string(j) + ".jpg", image(bread[j]));
 		}
 
-		// Plates segmentation
 		if (!SKIP)
-		{
-			// Python OpenAI CLIP classifier
+		{	// Plates segmentation using CLIP
 			if (DEBUG) cout << "Running Python script..." << endl;
 			PyObject* pValue = PyLong_FromLong(i);
 			PyTuple_SetItem(pArgs, 0, pValue);
@@ -178,67 +160,67 @@ int main()
 			if (DEBUG) cout << "Python script finished" << endl;
 		}
 
-		// Segmentation
+		// Compute final masks and bounding boxes for each image
 		for (const auto& imgname : IMAGE_NAMES)
-		{	// For each image get the bounding boxes
-			cv::Mat image = cv::imread(DATASET_PATH + "tray" + to_string(i) + "/" + imgname + ".jpg");
-			vector<cv::Vec3f> plates = bb.front().getPlates();
-			pair<bool, cv::Vec3f> salad = bb.front().getSalad();
-			std::vector<cv::Rect> bread = bb.front().getBread();
-			bb.pop();
-			vector<string> files;
-			cv::glob(PLATES_PATH + "tray" + to_string(i) + "/" + imgname + "/*.jpg", files);
+		{	// For each image 'imgname' in tray [i]
+			cv::Mat image = cv::imread(DATASET_PATH + "tray" + to_string(i) + "/" + imgname + ".jpg");   // Read the image
+			vector<cv::Vec3f> plates = bb.front().getPlates();                                           // Get the plates from the queue
+			pair<bool, cv::Vec3f> salad = bb.front().getSalad();                                         // Get the salad from the queue
+			std::vector<cv::Rect> bread = bb.front().getBread();                                         // Get the bread from the queue
+			bb.pop();                                                                                    // Pop the BoundingBoxes object from the queue
+			
+			vector<string> files;                                                              // Vector of strings containing the paths of the plates in the image
+			cv::glob(PLATES_PATH + "tray" + to_string(i) + "/" + imgname + "/*.jpg", files);   // Get the paths of the plates in the image
 
-			// tray_mask
-			cv::Mat tray_mask = cv::Mat::zeros(image.size(), CV_8UC1);
-			vector<string> boxes;
+			cv::Mat tray_mask = cv::Mat::zeros(image.size(), CV_8UC1);   // Create the tray mask
+			vector<string> boxes;                                        // Vector of strings containing the bounding boxes of the plates in the image
+			std::vector<std::pair<int, cv::Rect>> tray_boxes;            // Final bounding boxes of the plates in the image
 
-			//for metrics
-			std::vector<std::pair<int, cv::Rect>> boxes_for_metrics;
-
-			// Plates
+			// PLATES: Process each plate in the image
 			for (int j = 0; j < files.size(); j++)
-			{	// For each plate in the image get the labels : association(file=plate_image, labels=categories, plates[j])
-				vector<int> labels;
+			{	// For each plate [j] in the image 'imgname' of tray [i]
 				ifstream infile(LABELS_PATH + files[j].substr(PLATES_PATH.length(), files[j].length() - 1) + ".txt");
-				string category;
-				while (getline(infile, category)) labels.push_back(stoi(category));
-				infile.close();
 
-				// Segmentation
-				cv::Mat plate_image = cv::imread(files[j]);
-				Segmentation seg(plate_image, labels);
-				cv::Mat mask = seg.getSegments();
-				vector<pair<int, cv::Rect>> box = seg.getBoxes();
+				vector<int> labels;                                                  // Vector of integers containing the labels of the segments in the plate [j]
+				string category;	                                                 // String containing the label of each segment in the plate [j]
+				while (getline(infile, category)) labels.push_back(stoi(category));  // Read the labels from the file previously computed by CLIP
+				infile.close();                                                      // Close the file
+
+				// Segmentate the plate [j] and get the bounding boxes of the segments
+				cv::Mat plate_image = cv::imread(files[j]);         // Read the plate [j]
+				Segmentation seg(plate_image, labels);		        // Create a Segmentation object
+				cv::Mat mask = seg.getSegments();			        // Get the mask of the segments
+				vector<pair<int, cv::Rect>> box = seg.getBoxes();   // Get the bounding boxes of the segments
 				for (int k = 0; k < box.size(); k++)
-				{
-					int label = box[k].first;
-					int x = box[k].second.x + plates[j][0] - plates[j][2];
-					int y = box[k].second.y + plates[j][1] - plates[j][2];
-					int w = box[k].second.width;
-					int h = box[k].second.height;
+				{   // For each bounding box [k] in the plate [j]
+					int label = box[k].first;                                // Get the label of the segment
+					int x = box[k].second.x + plates[j][0] - plates[j][2];   // Get the x coordinate of the bounding box wrt the true image
+					int y = box[k].second.y + plates[j][1] - plates[j][2];   // Get the y coordinate of the bounding box wrt the true image
+					int w = box[k].second.width;                             // Get the width of the bounding box
+					int h = box[k].second.height;                            // Get the height of the bounding box
+
 					boxes.push_back("ID: " + to_string(label) + "; [" + to_string(x) + ", " + to_string(y) + ", " + to_string(w) + ", " + to_string(h) + "]");
-					boxes_for_metrics.push_back(std::make_pair(label, cv::Rect(x, y, w, h)));
+					tray_boxes.push_back(std::make_pair(label, cv::Rect(x, y, w, h)));
 				}
-				// add mask to tray_mask
-				for (int k = 0; k < mask.rows; k++)
-					for (int l = 0; l < mask.cols; l++)
-						if (pow(k - plates[j][2], 2) + pow(l - plates[j][2], 2) <= pow(plates[j][2], 2)) //if (mask.at<uchar>(k,l) != 0)
+
+				// Add the mask of the plate [j] to the tray mask
+				for (int k = 0; k < mask.rows; k++)   // For each row [k] in the mask
+					for (int l = 0; l < mask.cols; l++)   // For each column [l] in the mask
+						if (pow(k - plates[j][2], 2) + pow(l - plates[j][2], 2) <= pow(plates[j][2], 2))   // Replace in the tray mask only the pixels inside the plate [j], not the whole rectangle
 							if (k + plates[j][1] - plates[j][2] >= 0 && k + plates[j][1] - plates[j][2] < tray_mask.rows && l + plates[j][0] - plates[j][2] >= 0 && l + plates[j][0] - plates[j][2] < tray_mask.cols)
 								tray_mask.at<uchar>(k + plates[j][1] - plates[j][2], l + plates[j][0] - plates[j][2]) = mask.at<uchar>(k,l);
-						
 			}
 
 			if (DEBUG) { cv::imshow("tray_mask", tray_mask * 15); cv::waitKey(0); }
 
-			// Salad
+			// SALAD: Process the salad in the image
 			if (salad.first)
-			{	// salad segmentation
+			{	// If the salad is present in the image
+				const int LABEL = 12;                                // Label of the salad
+				const unsigned int SATURATION_THRESHOLD = 206;       // Saturation threshold
+				cv::Mat salad_image = cutout(image, salad.second);   // Cut out the salad from the image
 
-				const int label = 12;
-				cv::Mat salad_image = cutout(image, salad.second);
-
-				//gamma correction
+				// Gamma correction
 				cv::Mat gamma;
 				cv::Mat lookUpTable(1, 256, CV_8U);
 				uchar* p = lookUpTable.ptr();
@@ -247,74 +229,69 @@ int main()
 					p[i] = cv::saturate_cast<uchar>(pow(i / 255.0, gamma_) * 255.0);
 				cv::LUT(salad_image, lookUpTable, gamma);
 
-				//to hsv
+				// HSV equalization
 				cv::Mat hsv;
 				cv::cvtColor(gamma, hsv, cv::COLOR_BGR2HSV);
 				vector<cv::Mat> hsv_channels;
 				cv::split(hsv, hsv_channels);
 				cv::equalizeHist(hsv_channels[1], hsv_channels[1]);
-				
-				int sat = 206;
 
+				// Thresholding
 				cv::Mat mask;
-				cv::threshold(hsv_channels[1], mask, sat, label, cv::THRESH_BINARY);
+				cv::threshold(hsv_channels[1], mask, SATURATION_THRESHOLD, LABEL, cv::THRESH_BINARY);
+				
+				// Morphological operations
 				mask = process(mask);
 
-				//find bounding box of mask
-				std::vector<std::vector<cv::Point>> contours;
-				cv::findContours(mask, contours, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
-				std::vector<cv::Rect> box(contours.size());
-				for (size_t i = 0; i < contours.size(); i++)
-					box[i] = cv::boundingRect(contours[i]);
-				auto min = std::min_element(box.begin(), box.end(), [](const cv::Rect& a, const cv::Rect& b) {return a.area() < b.area(); });
+				// Find the bounding box of the salad
+				std::vector<std::vector<cv::Point>> contours;                                   // Vector of vectors of points containing the contours of the salad
+				cv::findContours(mask, contours, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);   // Find the contours of the salad
+				std::vector<cv::Rect> box(contours.size());									    // Vector of rectangles containing the bounding boxes of the salad
+				
+				for (int i = 0; i < contours.size(); i++)
+					box[i] = cv::boundingRect(contours[i]);  // Get the bounding boxes of the salad
+				auto min = std::min_element(box.begin(), box.end(), [](const cv::Rect& a, const cv::Rect& b) { return a.area() < b.area(); });   // Get the smallest bounding box
 
-				int x = min->x + salad.second[0] - salad.second[2];
-				int y = min->y + salad.second[1] - salad.second[2];
-				int w = min->width;
-				int h = min->height;
-				boxes.push_back("ID: " + to_string(label) + "; [" + to_string(x) + ", " + to_string(y) + ", " + to_string(w) + ", " + to_string(h) + "]");
+				int x = min->x + salad.second[0] - salad.second[2];   // Get the x coordinate of the bounding box wrt the true image
+				int y = min->y + salad.second[1] - salad.second[2];   // Get the y coordinate of the bounding box wrt the true image
+				int w = min->width;                                   // Get the width of the bounding box
+				int h = min->height;                                  // Get the height of the bounding box
 
+				boxes.push_back("ID: " + to_string(LABEL) + "; [" + to_string(x) + ", " + to_string(y) + ", " + to_string(w) + ", " + to_string(h) + "]");
+				tray_boxes.push_back(std::make_pair(LABEL, cv::Rect(x, y, w, h)));
 
-				for (int k = 0; k < mask.rows; k++)
-					for (int l = 0; l < mask.cols; l++)
-						if (pow(k - salad.second[2],2) + pow(l - salad.second[2],2) <= pow(salad.second[2],2))
+				// Add the mask of the salad to the tray mask
+				for (int k = 0; k < mask.rows; k++)   // For each row [k] in the mask
+					for (int l = 0; l < mask.cols; l++)   // For each column [l] in the mask
+						if (pow(k - salad.second[2],2) + pow(l - salad.second[2],2) <= pow(salad.second[2],2))   // Replace in the tray mask only the pixels inside the salad, not the whole rectangle
 							if (k + salad.second[1] - salad.second[2] >= 0 && k + salad.second[1] - salad.second[2] < tray_mask.rows && l + salad.second[0] - salad.second[2] >= 0 && l + salad.second[0] - salad.second[2] < tray_mask.cols)
 								tray_mask.at<uchar>(k + salad.second[1] - salad.second[2], l + salad.second[0] - salad.second[2]) = mask.at<uchar>(k, l);
 
-				if (DEBUG) {
-					cv::imshow("w/salad", tray_mask * 15);
-					cv::waitKey(0);
-				}
+				if (DEBUG) { cv::imshow("w/salad", tray_mask * 15); cv::waitKey(0); }
 			}
 
-			// Bread detection qith CLIP
+			// BREAD: Process the bread in the image
 			if (!SKIP)
-			{
-				// Python OpenAI CLIP classifier
+			{   // Bread detection with CLIP
 				if (DEBUG) cout << "Running Python script..." << endl;
 				PyObject* pValue = PyLong_FromLong(i);
 				PyTuple_SetItem(pArgs, 0, pValue);
 				PyObject_CallObject(pFunc_bread, pArgs);
 				if (DEBUG) cout << "Python script finished" << endl;
 			}
-
-			// Bread
 			if (!filesystem::is_empty(BREAD_OUT_PATH + "tray" + to_string(i) + "/" + imgname + "/"))
-			{	// TODO: implement bread segmentation
-
-				// get files in directory
+			{	// Bread segmentation, if the bread is present in the image (CLIP found bread in one of the subimages)
 				vector<string> files;
 				for (const auto& entry : filesystem::directory_iterator(BREAD_OUT_PATH + "tray" + to_string(i) + "/" + imgname + "/"))
-					files.push_back(entry.path().string());
-				string breadimg = files[0].substr(0, files[0].size() - 4);	//remove .txt
-				breadimg.replace(0, BREAD_OUT_PATH.size(), BREAD_PATH);		//replace path
+					files.push_back(entry.path().string());                 // Get the paths of the files in the directory
+				string breadimg = files[0].substr(0, files[0].size() - 4);	// Remove .txt
+				breadimg.replace(0, BREAD_OUT_PATH.size(), BREAD_PATH);		// Replace path
+				cv::Mat bread = cv::imread(breadimg);                       // Read the bread image
 
-				// read image
-				cv::Mat bread = cv::imread(breadimg);
-				cv::imshow("bread", bread);
-				cv::waitKey(0);
+				if (DEBUG) { cv::imshow("bread", bread); cv::waitKey(0); }
 
 				// TESTS DOWN HERE
+				/*
 				//gamma correction
 
 				cv::Mat gamma;
@@ -400,77 +377,61 @@ int main()
 
 				cv::Mat mask;
 				cv::threshold(hsv_channels[1], mask, sat, 13, cv::THRESH_BINARY);
-				mask = process(mask);
+				mask = process(mask);*/
 			}
 
-			//write bounding boxes
+			// Write bounding boxes to file
 			if (!filesystem::exists(OUTPUT_PATH + "tray" + to_string(i) + "/bounding_boxes/")) filesystem::create_directory(OUTPUT_PATH + "tray" + to_string(i) + "/bounding_boxes/");
 			for (int k = 0; k < boxes.size(); k++)
-			{
+			{   // For each bounding box [k] in the image 'imgname' in tray [i]
 				if (DEBUG) cout << imgname + " " + boxes[k] << endl;
 
-				std::ofstream file;
+				ofstream file;
 				string path = OUTPUT_PATH + "tray" + to_string(i) + "/bounding_boxes/" + imgname + "_bounding_boxes.txt";
 
-				if (k == 0)
-					file = std::ofstream(path);
-				else
-					file = std::ofstream(path, std::ios_base::app);
-
-
+				k == 0 ? file = ofstream(path) : file = ofstream(path, ios_base::app);
 				if (file.is_open())
-				{
-					if (k < boxes.size() - 1)
-						file << boxes[k] << endl;
-					else
-						file << boxes[k];
-				}
+					k < boxes.size() - 1 ? file << boxes[k] << endl : file << boxes[k];
 			}
 
-			//write tray mask
+			// Write tray mask to file
 			if (!filesystem::exists(OUTPUT_PATH + "tray" + to_string(i) + "/masks/")) filesystem::create_directory(OUTPUT_PATH + "tray" + to_string(i) + "/masks/");
 			cv::imwrite(OUTPUT_PATH + "tray" + to_string(i) + "/masks/" + imgname + "_mask.png", tray_mask);
 
-
-			//Metrics
-			
-			//read original files
+			// METRICS: update the 'metrics' vector
 			const string BOXES_PATH = DATASET_PATH + "tray" + to_string(i) + "/bounding_boxes/";
 			const string MASK_PATH = DATASET_PATH + "tray" + to_string(i) + "/masks/";
-			vector<string> boxes_files, mask_files;
-			cv::glob(BOXES_PATH + "*.txt", boxes_files);
-			cv::glob(MASK_PATH + "*", mask_files);
+			vector<string> boxes_files, mask_files;        // Vector of strings to store paths of bounding boxes and masks files
+			cv::glob(BOXES_PATH + "*.txt", boxes_files);   // Get all bounding boxes files
+			cv::glob(MASK_PATH + "*", mask_files);         // Get all mask files
 			
 			for (int k = 0; k < boxes_files.size(); k++)
-			{
-				//read boxes
-				vector<pair<int, cv::Rect>> original_boxes;
-				std::ifstream file(boxes_files[k]);
+			{   // For each bounding box file [k] in tray [i]
+				vector<pair<int, cv::Rect>> original_boxes;   // Vector of pairs to store the original boxes from the assignment
+				ifstream file(boxes_files[k]);
 				if (file.is_open())
-				{
-					string line;
+				{   // Read the file and store the boxes in the vector
+					string line;   // Line read from the file
 					while (getline(file, line))
-					{
-						int id_start = line.find(":") + 2;
-						int id_end = line.find(";");
-						int box_start = line.find("[") + 1;
-						int box_end = line.find("]");
-						string id = line.substr(id_start, id_end - id_start);
-						string box = line.substr(box_start, box_end - box_start);
-						//split box values
-						istringstream iss(box);
-						vector<string> tokens{ istream_iterator<string>{iss}, istream_iterator<string>{} };
-						cv::Rect tmp(stoi(tokens[0]), stoi(tokens[1]), stoi(tokens[2]), stoi(tokens[3]));
-						original_boxes.push_back(make_pair(stoi(id), tmp));
+					{   // For each line 'line' in the file
+						int id_start = line.find(":") + 2;    // Start of the id in the line
+						int id_end = line.find(";");          // End of the id in the line
+						int box_start = line.find("[") + 1;   // Start of the box in the line
+						int box_end = line.find("]");         // End of the box in the line
+
+						string id = line.substr(id_start, id_end - id_start);      // Extract the id
+						string box = line.substr(box_start, box_end - box_start);  // Extract the box
+
+						istringstream iss(box);                                                               // Create a string stream from the box
+						vector<string> tokens{ istream_iterator<string>{iss}, istream_iterator<string>{} };   // Split the box into tokens
+						cv::Rect tmp(stoi(tokens[0]), stoi(tokens[1]), stoi(tokens[2]), stoi(tokens[3]));     // Create a rectangle from the box
+						original_boxes.push_back(make_pair(stoi(id), tmp));                                   // Add the pair to the vector
 					}
 					file.close();
 				}
-
-				cv::Mat original_mask = cv::imread(mask_files[k]);
-				Metrics met(tray_mask, boxes_for_metrics, original_mask, original_boxes);
-				
+				cv::Mat original_mask = cv::imread(mask_files[k]);                                            // Read the mask file from the assignment
+				metrics.back().push_back(make_tuple(tray_mask, tray_boxes, original_mask, original_boxes));   // Add the tuple to the 'metrics' vector
 			}
-
 		}
 	}
 
