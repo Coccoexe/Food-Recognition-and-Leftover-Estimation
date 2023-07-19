@@ -51,6 +51,7 @@ BoundingBoxes::BoundingBoxes(const cv::Mat& input)
 					: source_image.rows / BREAD_FACTOR                   // If not, set the height to the default height
 			));
 		}
+	if (DEBUG) for (const auto& rect : bread) cv::rectangle(debug_image, rect, cv::Scalar(0, 0, 255), 2);
 
 	// Show debug image
 	if (DEBUG) { cv::imshow("DEBUG: Bounding Boxes", debug_image); cv::waitKey(0); }

@@ -153,6 +153,7 @@ int main()
 		for (const auto& imgname : IMAGE_NAMES)
 		{	// For each image
 			if (!filesystem::exists(PLATES_PATH + "tray" + to_string(i) + "/" + imgname + "/")) filesystem::create_directory(PLATES_PATH + "tray" + to_string(i) + "/" + imgname + "/");
+			if (!filesystem::exists(BREAD_PATH + "tray" + to_string(i) + "/" + imgname + "/")) filesystem::create_directory(BREAD_PATH + "tray" + to_string(i) + "/" + imgname + "/");
 			cv::Mat image = cv::imread(DATASET_PATH + "tray" + to_string(i) + "/" + imgname + ".jpg");
 			bb.push(BoundingBoxes(image));
 			vector<cv::Vec3f> plates = bb.back().getPlates();
