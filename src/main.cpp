@@ -336,14 +336,17 @@ int main()
 				cv::split(hsv, hsv_channels);
 				cv::equalizeHist(hsv_channels[1], hsv_channels[1]);
 				cv::merge(hsv_channels, hsv);
+				//to rgb
+				cv::Mat rgb;
+				cv::cvtColor(hsv, rgb, cv::COLOR_HSV2BGR);
 
 				int sat = 182;
-				int bMin = 170;
-				int bMax = 220;
-				int gMin = 177;
-				int gMax = 220;
-				int rMin = 185;
-				int rMax = 230;
+				int bMin = 0;
+				int bMax = 255;
+				int gMin = 198;
+				int gMax = 253;
+				int rMin = 130;
+				int rMax = 220;
 
 				cv::namedWindow("trackbars", cv::WINDOW_NORMAL);
 				cv::createTrackbar("sat", "trackbars", &sat, 255);
@@ -365,15 +368,25 @@ int main()
 					//mask = process(ranged);
 					//cv::copyTo(gamma, original_ran, mask);
 					//cv::imshow("ranged", original_ran);
-					cv::inRange(hsv, cv::Scalar(bMin, gMin, rMin), cv::Scalar(bMax, gMax, rMax), mask);
+					cv::inRange(rgb, cv::Scalar(bMin, gMin, rMin), cv::Scalar(bMax, gMax, rMax), mask);
 					cv::imshow("filtered", mask);
 
 					cv::Mat original;
-					cv::bitwise_and(hsv, hsv, original, mask);
+					cv::bitwise_and(rgb, rgb, original, mask);
 
 					cv::imshow("original", original);
 					
 					if (cv::waitKey(1) == 27) break;
+					if (cv::waitKey(1) == 13)
+					{
+						cout << "Blue range: " << bMin << " " << bMax << endl;
+						cout << "Green range: " << gMin << " " << gMax << endl;
+						cout << "Red range: " << rMin << " " << rMax << endl;
+						cv::Mat temp;
+						cv::inRange(rgb, cv::Scalar(bMin, gMin, rMin), cv::Scalar(bMax, gMax, rMax), temp);
+						cv::imshow("img", process(temp));
+						cv::waitKey(0);
+					}
 
 					sat = cv::getTrackbarPos("sat", "trackbars");
 					bMin = cv::getTrackbarPos("bMin", "trackbars");
