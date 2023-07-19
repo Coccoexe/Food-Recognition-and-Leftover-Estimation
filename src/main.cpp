@@ -107,6 +107,7 @@ int main()
 	const int NUMBER_OF_TRAYS = 8;
 	const vector<string> IMAGE_NAMES = { "food_image", "leftover1", "leftover2", "leftover3" };
 	const string PLATES_PATH = "./plates/";
+	const string BREAD_PATH = "./bread/";
 	const string LABELS_PATH = "./labels/";
 	const string OUTPUT_PATH = "./output/";
 	auto cutout = [](const cv::Mat& image, const cv::Vec3f& circle) -> cv::Mat
@@ -141,11 +142,13 @@ int main()
 	// Process
 	if (!filesystem::exists(PLATES_PATH)) filesystem::create_directory(PLATES_PATH);
 	if (!filesystem::exists(OUTPUT_PATH)) filesystem::create_directory(OUTPUT_PATH);
+	if (!filesystem::exists(BREAD_PATH)) filesystem::create_directory(BREAD_PATH);
 	for (int i = 1; i <= NUMBER_OF_TRAYS; i++)
 	{	// For each tray
 
 		if (!filesystem::exists(PLATES_PATH + "tray" + to_string(i) + "/")) filesystem::create_directory(PLATES_PATH + "tray" + to_string(i) + "/");
 		if (!filesystem::exists(OUTPUT_PATH + "tray" + to_string(i) + "/")) filesystem::create_directory(OUTPUT_PATH + "tray" + to_string(i) + "/");
+		if (!filesystem::exists(BREAD_PATH + "tray" + to_string(i) + "/")) filesystem::create_directory(BREAD_PATH + "tray" + to_string(i) + "/");
 		queue<BoundingBoxes> bb;
 		for (const auto& imgname : IMAGE_NAMES)
 		{	// For each image
@@ -153,29 +156,33 @@ int main()
 			cv::Mat image = cv::imread(DATASET_PATH + "tray" + to_string(i) + "/" + imgname + ".jpg");
 			bb.push(BoundingBoxes(image));
 			vector<cv::Vec3f> plates = bb.back().getPlates();
+			std::vector<cv::Rect> bread = bb.back().getBread();
 
 			// Save plates cutouts
 			for (int j = 0; j < plates.size(); j++)	cv::imwrite(PLATES_PATH + "tray" + to_string(i) + "/" + imgname + "/plate" + to_string(j) + ".jpg", cutout(image, plates[j]));
+			// Save bread cutouts
+			for (int j = 0; j < bread.size(); j++)	cv::imwrite(BREAD_PATH + "tray" + to_string(i) + "/" + imgname + "/bread" + to_string(j) + ".jpg", image(bread[j]));
 		}
 
-
-		// Segmentation
-
-		if (!SKIP){
-		// Python OpenAI CLIP classifier
-		if (DEBUG) cout << "Running Python script..." << endl;
-		PyObject* pValue = PyLong_FromLong(i);
-		PyTuple_SetItem(pArgs, 0, pValue);
-		PyObject_CallObject(pFunc, pArgs);
-		if (DEBUG) cout << "Python script finished" << endl;
+		// Plates segmentation
+		if (!SKIP)
+		{
+			// Python OpenAI CLIP classifier
+			if (DEBUG) cout << "Running Python script..." << endl;
+			PyObject* pValue = PyLong_FromLong(i);
+			PyTuple_SetItem(pArgs, 0, pValue);
+			PyObject_CallObject(pFunc, pArgs);
+			if (DEBUG) cout << "Python script finished" << endl;
 		}
+
+		// Bread segmentation
 
 		for (const auto& imgname : IMAGE_NAMES)
 		{	// For each image get the bounding boxes
 			cv::Mat image = cv::imread(DATASET_PATH + "tray" + to_string(i) + "/" + imgname + ".jpg");
 			vector<cv::Vec3f> plates = bb.front().getPlates();
 			pair<bool, cv::Vec3f> salad = bb.front().getSalad();
-			pair<bool, cv::Rect> bread = bb.front().getBread();
+			std::vector<cv::Rect> bread = bb.front().getBread();
 			bb.pop();
 			vector<string> files;
 			cv::glob(PLATES_PATH + "tray" + to_string(i) + "/" + imgname + "/*.jpg", files);

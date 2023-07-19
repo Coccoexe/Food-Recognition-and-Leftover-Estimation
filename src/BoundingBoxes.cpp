@@ -19,6 +19,7 @@ BoundingBoxes::BoundingBoxes(const cv::Mat& input)
 	const unsigned int BOWL_MIN_RADIUS = 170;
 	const unsigned int BOWL_MAX_RADIUS = 220;
 	const unsigned int MIN_DISTANCE_BETWEEN_CIRCLES = 300;
+	const unsigned int BREAD_FACTOR = 3;
 	cv::Mat debug_image;
 	if (DEBUG) debug_image = source_image.clone();
 
@@ -37,8 +38,10 @@ BoundingBoxes::BoundingBoxes(const cv::Mat& input)
 	cv::HoughCircles(grayscale_image, salad_circles, cv::HOUGH_GRADIENT, 1, MIN_DISTANCE_BETWEEN_CIRCLES, HOUGH_CANNY_THRESHOLD, HOUGH_CIRCLE_ROUNDNESS, BOWL_MIN_RADIUS, BOWL_MAX_RADIUS);
 	if (DEBUG) for (const auto& circle : salad_circles) cv::circle(debug_image, cv::Point(cvRound(circle[0]), cvRound(circle[1])), cvRound(circle[2]), cv::Scalar(0, 255, 0), 2);
 
-	// 3. Detect bread (if exists)
-	// TODO: implement
+	// 3. Detect bread (if exists): width/BREAD_FACTOR * height/BREAD_FACTOR rectangles with strides of width/(2*BREAD_FACTOR) and height/(2*BREAD_FACTOR)
+	for (int x = 0; x < source_image.cols; x += source_image.cols / (2 * BREAD_FACTOR))
+		for (int y = 0; y < source_image.rows; y += source_image.rows / (2 * BREAD_FACTOR))
+			bread.push_back(cv::Rect(x, y, source_image.cols / BREAD_FACTOR, source_image.rows / BREAD_FACTOR));
 
 	// Show debug image
 	if (DEBUG) { cv::imshow("DEBUG: Bounding Boxes", debug_image); cv::waitKey(0); }
