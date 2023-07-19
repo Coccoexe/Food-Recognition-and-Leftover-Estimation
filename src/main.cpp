@@ -451,10 +451,10 @@ int main()
 					string line;
 					while (getline(file, line))
 					{
-						size_t id_start = line.find(":") + 2;
-						size_t id_end = line.find(";");
-						size_t box_start = line.find("[") + 1;
-						size_t box_end = line.find("]");
+						int id_start = line.find(":") + 2;
+						int id_end = line.find(";");
+						int box_start = line.find("[") + 1;
+						int box_end = line.find("]");
 						string id = line.substr(id_start, id_end - id_start);
 						string box = line.substr(box_start, box_end - box_start);
 						//split box values
