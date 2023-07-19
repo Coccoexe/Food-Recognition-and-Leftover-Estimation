@@ -5,9 +5,9 @@
 Metrics::Metrics(std::vector<std::vector<std::tuple<cv::Mat, std::vector<std::pair<int, cv::Rect>>, cv::Mat, std::vector<std::pair<int, cv::Rect>>>>> &m)
 	: metrics(m)
 {
-	true_positives = std::vector<int>(14, 0);
-	false_positives = std::vector<int>(14, 0);
-	false_negatives = std::vector<int>(14, 0);
+	true_positives = std::vector<double>(14, 0);
+	false_positives = std::vector<double>(14, 0);
+	false_negatives = std::vector<double>(14, 0);
 	precision = std::vector<std::vector<double>>(14, std::vector<double>());
 	recall = std::vector<std::vector<double>>(14, std::vector<double>());
 
@@ -68,7 +68,7 @@ Metrics::Metrics(std::vector<std::vector<std::tuple<cv::Mat, std::vector<std::pa
 	}
 
 	
-	int gne = 7;
+	int gne = 11;
 
 	std::cout << "TP: " << true_positives[gne] << " FP: " << false_positives[gne] << " FN: " << false_negatives[gne] << std::endl;
 
