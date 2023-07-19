@@ -289,7 +289,7 @@ int main()
 			}
 
 			// Bread
-			if (!bread.first)
+			if (false)
 			{	// TODO: implement bread segmentation
 				//gamma correction
 
