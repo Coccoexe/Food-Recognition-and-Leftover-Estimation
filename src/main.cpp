@@ -25,7 +25,7 @@
 #include <Python.h>
 
 #define DEBUG false
-#define SKIP true	// avoid processing of CLIP
+#define SKIP false	// avoid processing of CLIP
 
 using namespace std;
 
@@ -136,7 +136,8 @@ int main()
 	PyRun_SimpleString("sys.argv = ['CLIP_interface.py']");
 	PyObject* pName = PyUnicode_FromString("CLIP_interface");
 	PyObject* pModule = PyImport_ImportModule("CLIP_interface");
-	PyObject* pFunc = PyObject_GetAttrString(pModule, "main");
+	PyObject* pFunc = PyObject_GetAttrString(pModule, "plates");
+	PyObject* pFunc_bread = PyObject_GetAttrString(pModule, "bread");
 	PyObject* pArgs = PyTuple_New(1);
 
 	// Process
@@ -166,7 +167,7 @@ int main()
 		}
 
 		// Plates segmentation
-		if (!SKIP)
+		if (SKIP)
 		{
 			// Python OpenAI CLIP classifier
 			if (DEBUG) cout << "Running Python script..." << endl;
@@ -286,10 +287,18 @@ int main()
 			}
 
 			// Bread
-			if (false) // TODO: change false to check if there is the correspondiong image file with con fidenc score in the folder bread_output
+			if (true) // TODO: change false to check if there is the correspondiong image file with con fidenc score in the folder bread_output
 			{	// TODO: implement bread segmentation
 
-
+				if (SKIP)
+				{
+					// Python OpenAI CLIP classifier
+					if (DEBUG) cout << "Running Python script..." << endl;
+					PyObject* pValue = PyLong_FromLong(i);
+					PyTuple_SetItem(pArgs, 0, pValue);
+					PyObject_CallObject(pFunc_bread, pArgs);
+					if (DEBUG) cout << "Python script finished" << endl;
+				}
 
 				// TESTS DOWN HERE
 				//gamma correction
@@ -331,7 +340,7 @@ int main()
 				cv::createTrackbar("rMax", "trackbars", &rMax, 255);
 
 
-				while (true)
+				while (DEBUG)
 				{
 					cv::Mat satr, ranged, original_sat, original_ran, mask;
 					cv::threshold(hsv_channels[1], satr, sat, 13, cv::THRESH_BINARY);
