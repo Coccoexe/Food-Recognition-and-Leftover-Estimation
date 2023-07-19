@@ -282,7 +282,7 @@ int main()
 			}
 
 			// Bread
-			if (bread.first)
+			if (!bread.first)
 			{	// TODO: implement bread segmentation
 				//gamma correction
 
@@ -294,12 +294,9 @@ int main()
 					p[i] = cv::saturate_cast<uchar>(pow(i / 255.0, gamma_) * 255.0);
 				cv::LUT(image, lookUpTable, gamma);
 
-				cv::circle(image, cv::Point(salad.second[0], salad.second[1]), salad.second[2], cv::Scalar(0, 0, 0), -1);
+				cv::circle(gamma, cv::Point(salad.second[0], salad.second[1]), salad.second[2], cv::Scalar(0, 0, 0), -1);
 				for (const auto circle : plates)
-					cv::circle(image, cv::Point(circle[0], circle[1]), circle[2], cv::Scalar(0, 0, 0), -1);
-
-				cv::imshow("w/o bread", image);
-				cv::waitKey(0);
+					cv::circle(gamma, cv::Point(circle[0], circle[1]), circle[2], cv::Scalar(0, 0, 0), -1);
 
 				//to hsv
 				cv::Mat hsv;
@@ -308,13 +305,13 @@ int main()
 				cv::split(hsv, hsv_channels);
 				cv::equalizeHist(hsv_channels[1], hsv_channels[1]);
 
-				int sat = 200;
-				int bMin = 7;
-				int bMax = 255;
-				int gMin = 0;
-				int gMax = 255;
-				int rMin = 0;
-				int rMax = 180;
+				int sat = 190;
+				int bMin = 130;
+				int bMax = 230;
+				int gMin = 180;
+				int gMax = 240;
+				int rMin = 184;
+				int rMax = 255;
 
 				cv::namedWindow("trackbars", cv::WINDOW_NORMAL);
 				cv::createTrackbar("sat", "trackbars", &sat, 255);
