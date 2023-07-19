@@ -176,8 +176,7 @@ int main()
 			if (DEBUG) cout << "Python script finished" << endl;
 		}
 
-		// Bread segmentation
-
+		// Segmentation
 		for (const auto& imgname : IMAGE_NAMES)
 		{	// For each image get the bounding boxes
 			cv::Mat image = cv::imread(DATASET_PATH + "tray" + to_string(i) + "/" + imgname + ".jpg");
@@ -228,10 +227,7 @@ int main()
 						
 			}
 
-			if (DEBUG) {
-				cv::imshow("tray_mask", tray_mask * 15);
-				cv::waitKey(0);
-			}
+			if (DEBUG) { cv::imshow("tray_mask", tray_mask * 15); cv::waitKey(0); }
 
 			// Salad
 			if (salad.first)
@@ -290,8 +286,12 @@ int main()
 			}
 
 			// Bread
-			if (false)
+			if (false) // TODO: change false to check if there is the correspondiong image file with con fidenc score in the folder bread_output
 			{	// TODO: implement bread segmentation
+
+
+
+				// TESTS DOWN HERE
 				//gamma correction
 
 				cv::Mat gamma;
