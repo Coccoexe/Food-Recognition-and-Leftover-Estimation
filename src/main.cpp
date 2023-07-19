@@ -290,6 +290,41 @@ int main()
 
 				if (DEBUG) { cv::imshow("bread", bread); cv::waitKey(0); }
 
+				/*cv::Mat bread_canny;
+				cv::Canny(bread, bread_canny, 60, 200);
+				vector<vector<cv::Point>> bread_contours;
+				cv::findContours(bread_canny, bread_contours, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
+				cv::Mat bread_mask = cv::Mat::zeros(bread.size(), CV_8UC1);
+				cv::drawContours(bread_mask, bread_contours, -1, cv::Scalar(255), 25);
+				cv::erode(bread_mask, bread_mask, cv::Mat(), cv::Point(-1, -1), 35);
+				cv::dilate(bread_mask, bread_mask, cv::Mat(), cv::Point(-1, -1), 10);
+				cv::imshow("bread_mask", bread_mask);
+				cv::threshold(bread_mask, bread_mask, 0, 1, cv::THRESH_BINARY);
+
+				cv::Mat bread_gray = cv::Mat::zeros(bread.size(), CV_8UC1);
+				bread_gray.setTo(cv::GC_PR_BGD);
+				cv::Mat weights;
+				cv::addWeighted(bread_mask, 1, bread_gray, 1, 0, weights);
+
+				cv::Mat bgdModel, fgdModel;
+				cv::grabCut(bread, weights, cv::Rect(), bgdModel, fgdModel, 1, cv::GC_INIT_WITH_MASK);
+
+				cv::Mat1b mask_fgpf = (weights == cv::GC_PR_FGD) | (weights == cv::GC_FGD);
+				cv::Mat3b bread_fgpf = cv::Mat3b::zeros(bread.size());
+				bread.copyTo(bread_fgpf, mask_fgpf);
+
+				cv::imshow("bread_fgpf", bread_fgpf);
+				cv::waitKey(0);
+
+
+
+				cv::Mat fgModel, bgModel;
+				cv::grabCut(bread, bread_mask, cv::Rect(), bgModel, fgModel, 1, cv::GC_INIT_WITH_MASK);*/
+				
+
+
+
+
 				// TESTS DOWN HERE
 				/*
 				//gamma correction
