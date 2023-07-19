@@ -72,14 +72,6 @@ Segmentation::Segmentation(cv::Mat& p, std::vector<int> l)
 				cv::waitKey(0);
 			}
 		}
-
-		//find area of mask
-		std::vector<std::vector<cv::Point>> contours;
-		cv::findContours(mask, contours, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
-		int area = 0;
-		for (const auto& contour : contours)
-			area += cv::contourArea(contour);
-		areas.push_back(std::make_pair(label, area));
 	}
 
 	if (DEBUG)

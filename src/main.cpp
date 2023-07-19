@@ -8,6 +8,7 @@
 
 #include "BoundingBoxes.hpp"
 #include "Segmentation.hpp"
+#include "Metrics.hpp"
 
 #include <filesystem>
 #include <fstream>
@@ -24,7 +25,7 @@
 #include <Python.h>
 
 #define DEBUG false
-#define SKIP true
+#define SKIP true	// avoid processing of CLIP
 
 using namespace std;
 
@@ -58,7 +59,7 @@ void k_means(cv::Mat img, cv::Mat out, int k)
 		}
 }
 
-cv::Mat process(cv::Mat msk1, cv::Mat imaaasss) {
+cv::Mat process(cv::Mat msk1) {
 	auto filterAreas = [](const cv::Mat& input, cv::Mat& output, const unsigned int threshold) -> void
 	{
 		std::vector<std::vector<cv::Point>> c;
@@ -95,12 +96,6 @@ cv::Mat process(cv::Mat msk1, cv::Mat imaaasss) {
 
 	//filling holes
 	fillHoles(a);
-
-	//detected
-	cv::Mat original;
-	cv::bitwise_and(imaaasss, imaaasss, original, a);
-	//cv::imshow("original", original);
-	//cv::waitKey(0);
 
 	return a;
 }
@@ -189,6 +184,9 @@ int main()
 			cv::Mat tray_mask = cv::Mat::zeros(image.size(), CV_8UC1);
 			vector<string> boxes;
 
+			//for metrics
+			std::vector<std::pair<int, cv::Rect>> boxes_for_metrics;
+
 			// Plates
 			for (int j = 0; j < files.size(); j++)
 			{	// For each plate in the image get the labels : association(file=plate_image, labels=categories, plates[j])
@@ -202,7 +200,6 @@ int main()
 				cv::Mat plate_image = cv::imread(files[j]);
 				Segmentation seg(plate_image, labels);
 				cv::Mat mask = seg.getSegments();
-				vector<pair<int, int>> plate_areas = seg.getAreas();
 				vector<pair<int, cv::Rect>> box = seg.getBoxes();
 				for (int k = 0; k < box.size(); k++)
 				{
@@ -212,6 +209,7 @@ int main()
 					int w = box[k].second.width;
 					int h = box[k].second.height;
 					boxes.push_back("ID: " + to_string(label) + "; [" + to_string(x) + ", " + to_string(y) + ", " + to_string(w) + ", " + to_string(h) + "]");
+					boxes_for_metrics.push_back(std::make_pair(label, cv::Rect(x, y, w, h)));
 				}
 				// add mask to tray_mask
 				for (int k = 0; k < mask.rows; k++)
@@ -229,7 +227,7 @@ int main()
 
 			// Salad
 			if (salad.first)
-			{	// TODO: implement salad segmentation
+			{	// salad segmentation
 
 				const int label = 12;
 				cv::Mat salad_image = cutout(image, salad.second);
@@ -254,7 +252,7 @@ int main()
 
 				cv::Mat mask;
 				cv::threshold(hsv_channels[1], mask, sat, label, cv::THRESH_BINARY);
-				mask = process(mask, salad_image);
+				mask = process(mask);
 
 				//find bounding box of mask
 				std::vector<std::vector<cv::Point>> contours;
@@ -278,7 +276,7 @@ int main()
 								tray_mask.at<uchar>(k + salad.second[1] - salad.second[2], l + salad.second[0] - salad.second[2]) = mask.at<uchar>(k, l);
 
 				if (DEBUG) {
-					cv::imshow("tray_mask", tray_mask * 15);
+					cv::imshow("w/salad", tray_mask * 15);
 					cv::waitKey(0);
 				}
 			}
@@ -286,6 +284,75 @@ int main()
 			// Bread
 			if (bread.first)
 			{	// TODO: implement bread segmentation
+				//gamma correction
+
+				cv::Mat gamma;
+				cv::Mat lookUpTable(1, 256, CV_8U);
+				uchar* p = lookUpTable.ptr();
+				double gamma_ = 0.5;
+				for (int i = 0; i < 256; ++i)
+					p[i] = cv::saturate_cast<uchar>(pow(i / 255.0, gamma_) * 255.0);
+				cv::LUT(image, lookUpTable, gamma);
+
+				cv::circle(image, cv::Point(salad.second[0], salad.second[1]), salad.second[2], cv::Scalar(0, 0, 0), -1);
+				for (const auto circle : plates)
+					cv::circle(image, cv::Point(circle[0], circle[1]), circle[2], cv::Scalar(0, 0, 0), -1);
+
+				cv::imshow("w/o bread", image);
+				cv::waitKey(0);
+
+				//to hsv
+				cv::Mat hsv;
+				cv::cvtColor(gamma, hsv, cv::COLOR_BGR2HSV);
+				vector<cv::Mat> hsv_channels;
+				cv::split(hsv, hsv_channels);
+				cv::equalizeHist(hsv_channels[1], hsv_channels[1]);
+
+				int sat = 200;
+				int bMin = 7;
+				int bMax = 255;
+				int gMin = 0;
+				int gMax = 255;
+				int rMin = 0;
+				int rMax = 180;
+
+				cv::namedWindow("trackbars", cv::WINDOW_NORMAL);
+				cv::createTrackbar("sat", "trackbars", &sat, 255);
+				cv::createTrackbar("bMin", "trackbars", &bMin, 255);
+				cv::createTrackbar("bMax", "trackbars", &bMax, 255);
+				cv::createTrackbar("gMin", "trackbars", &gMin, 255);
+				cv::createTrackbar("gMax", "trackbars", &gMax, 255);
+				cv::createTrackbar("rMin", "trackbars", &rMin, 255);
+				cv::createTrackbar("rMax", "trackbars", &rMax, 255);
+
+
+				while (true)
+				{
+					cv::Mat satr, ranged, original_sat, original_ran, mask;
+					cv::threshold(hsv_channels[1], satr, sat, 13, cv::THRESH_BINARY);
+					satr = process(satr);
+					cv::copyTo(gamma, original_sat, satr);
+					cv::inRange(original_sat, cv::Scalar(bMin, gMin, rMin), cv::Scalar(bMax, gMax, rMax), ranged);
+					mask = process(ranged);
+					cv::copyTo(gamma, original_ran, mask);
+					cv::imshow("ranged", original_ran);
+
+					
+					if (cv::waitKey(1) == 27) break;
+
+					sat = cv::getTrackbarPos("sat", "trackbars");
+					bMin = cv::getTrackbarPos("bMin", "trackbars");
+					bMax = cv::getTrackbarPos("bMax", "trackbars");
+					gMin = cv::getTrackbarPos("gMin", "trackbars");
+					gMax = cv::getTrackbarPos("gMax", "trackbars");
+					rMin = cv::getTrackbarPos("rMin", "trackbars");
+					rMax = cv::getTrackbarPos("rMax", "trackbars");
+				}
+				cv::destroyAllWindows();
+
+				cv::Mat mask;
+				cv::threshold(hsv_channels[1], mask, sat, 13, cv::THRESH_BINARY);
+				mask = process(mask);
 			}
 
 			//write bounding boxes
@@ -302,6 +369,7 @@ int main()
 				else
 					file = std::ofstream(path, std::ios_base::app);
 
+
 				if (file.is_open())
 				{
 					if (k < boxes.size() - 1)
@@ -314,8 +382,48 @@ int main()
 			//write tray mask
 			if (!filesystem::exists(OUTPUT_PATH + "tray" + to_string(i) + "/masks/")) filesystem::create_directory(OUTPUT_PATH + "tray" + to_string(i) + "/masks/");
 			cv::imwrite(OUTPUT_PATH + "tray" + to_string(i) + "/masks/" + imgname + "_mask.png", tray_mask);
-		}
 
+
+			//Metrics
+			
+			//read original files
+			const string BOXES_PATH = DATASET_PATH + "tray" + to_string(i) + "/bounding_boxes/";
+			const string MASK_PATH = DATASET_PATH + "tray" + to_string(i) + "/masks/";
+			vector<string> boxes_files, mask_files;
+			cv::glob(BOXES_PATH + "*.txt", boxes_files);
+			cv::glob(MASK_PATH + "*", mask_files);
+			
+			for (int k = 0; k < boxes_files.size(); k++)
+			{
+				//read boxes
+				vector<pair<int, cv::Rect>> original_boxes;
+				std::ifstream file(boxes_files[k]);
+				if (file.is_open())
+				{
+					string line;
+					while (getline(file, line))
+					{
+						size_t id_start = line.find(":") + 2;
+						size_t id_end = line.find(";");
+						size_t box_start = line.find("[") + 1;
+						size_t box_end = line.find("]");
+						string id = line.substr(id_start, id_end - id_start);
+						string box = line.substr(box_start, box_end - box_start);
+						//split box values
+						istringstream iss(box);
+						vector<string> tokens{ istream_iterator<string>{iss}, istream_iterator<string>{} };
+						cv::Rect tmp(stoi(tokens[0]), stoi(tokens[1]), stoi(tokens[2]), stoi(tokens[3]));
+						original_boxes.push_back(make_pair(stoi(id), tmp));
+					}
+					file.close();
+				}
+
+				cv::Mat original_mask = cv::imread(mask_files[k]);
+				Metrics met(tray_mask, boxes_for_metrics, original_mask, original_boxes);
+				
+			}
+
+		}
 	}
 
 	// Python finalization
