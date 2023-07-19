@@ -24,8 +24,8 @@
 
 #include <Python.h>
 
-#define DEBUG true // debug mode to check code logic
-#define SKIP false  // avoid CLIP processing to save time while developing
+#define DEBUG false // debug mode to check code logic
+#define SKIP true  // avoid CLIP processing to save time while developing
 
 using namespace std;
 
@@ -289,6 +289,85 @@ int main()
 				cv::Mat bread = cv::imread(breadimg);                       // Read the bread image
 
 				if (DEBUG) { cv::imshow("bread", bread); cv::waitKey(0); }
+
+				bread = image.clone();
+				cv::circle(bread, cv::Point(salad.second[0], salad.second[1]), salad.second[2], cv::Scalar(0, 0, 0), -1);
+				for (const auto circle : plates)
+					cv::circle(bread, cv::Point(circle[0], circle[1]), circle[2], cv::Scalar(0, 0, 0), -1);
+
+				//hsv
+				cv::Mat bread_hsv;
+				cv::cvtColor(bread, bread_hsv, cv::COLOR_BGR2HSV);
+				vector<cv::Mat> bread_hsv_channels;
+				cv::split(bread_hsv, bread_hsv_channels);
+				//equalize
+				cv::equalizeHist(bread_hsv_channels[1], bread_hsv_channels[1]);
+				cv::equalizeHist(bread_hsv_channels[2], bread_hsv_channels[2]);
+				cv::merge(bread_hsv_channels, bread_hsv);
+				cv::cvtColor(bread_hsv, bread, cv::COLOR_HSV2BGR);
+
+				int bMin1 = 0;
+				int bMax1 = 127;
+				int bMin2 = 128;
+				int bMax2 = 255;
+				int gMin1 = 0;
+				int gMax1 = 127;
+				int gMin2 = 128;
+				int gMax2 = 255;
+				int rMin1 = 0;
+				int rMax1 = 127;
+				int rMin2 = 128;
+				int rMax2 = 255;
+
+				cv::namedWindow("trackbars", cv::WINDOW_AUTOSIZE);
+				cv::createTrackbar("bMin1", "trackbars", &bMin1, 255);
+				cv::createTrackbar("bMax1", "trackbars", &bMax1, 255);
+				cv::createTrackbar("bMin2", "trackbars", &bMin2, 255);
+				cv::createTrackbar("bMax2", "trackbars", &bMax2, 255);
+				cv::createTrackbar("gMin1", "trackbars", &gMin1, 255);
+				cv::createTrackbar("gMax1", "trackbars", &gMax1, 255);
+				cv::createTrackbar("gMin2", "trackbars", &gMin2, 255);
+				cv::createTrackbar("gMax2", "trackbars", &gMax2, 255);
+				cv::createTrackbar("rMin1", "trackbars", &rMin1, 255);
+				cv::createTrackbar("rMax1", "trackbars", &rMax1, 255);
+				cv::createTrackbar("rMin2", "trackbars", &rMin2, 255);
+				cv::createTrackbar("rMax2", "trackbars", &rMax2, 255);
+
+				while (true)
+				{
+					cv::Mat mask1, mask2, mask;
+
+					//cv::threshold(bread_hsv_channels[1], mask1, sat1, 255, cv::THRESH_BINARY);
+					//cv::threshold(bread_hsv_channels[1], mask2, sat2, 255, cv::THRESH_BINARY);
+
+					//to bgr
+					cv::Mat bread_bgr1, bread_bgr2;
+					cv::cvtColor(bread, bread_bgr1, cv::COLOR_HSV2BGR);
+					cv::cvtColor(bread, bread_bgr2, cv::COLOR_HSV2BGR);
+
+					cv::inRange(bread_bgr1, cv::Scalar(bMin1, gMin1, rMin1), cv::Scalar(bMax1, gMax1, rMax1), mask1);
+					cv::inRange(bread_bgr2, cv::Scalar(bMin2, gMin2, rMin2), cv::Scalar(bMax2, gMax2, rMax2), mask2);
+					mask = mask1 | mask2;
+					cv::Mat temp;
+					cv::copyTo(bread, temp, mask);
+					cv::imshow("mask", temp);
+					
+					
+					if (cv::waitKey(1) == 27) break;
+
+					bMin1 = cv::getTrackbarPos("bMin1", "trackbars");
+					bMax1 = cv::getTrackbarPos("bMax1", "trackbars");
+					bMin2 = cv::getTrackbarPos("bMin2", "trackbars");
+					bMax2 = cv::getTrackbarPos("bMax2", "trackbars");
+					gMin1 = cv::getTrackbarPos("gMin1", "trackbars");
+					gMax1 = cv::getTrackbarPos("gMax1", "trackbars");
+					gMin2 = cv::getTrackbarPos("gMin2", "trackbars");
+					gMax2 = cv::getTrackbarPos("gMax2", "trackbars");
+					rMin1 = cv::getTrackbarPos("rMin1", "trackbars");
+					rMax1 = cv::getTrackbarPos("rMax1", "trackbars");
+					rMin2 = cv::getTrackbarPos("rMin2", "trackbars");
+					rMax2 = cv::getTrackbarPos("rMax2", "trackbars");
+				}
 
 				/*cv::Mat bread_canny;
 				cv::Canny(bread, bread_canny, 60, 200);
