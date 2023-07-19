@@ -41,7 +41,16 @@ BoundingBoxes::BoundingBoxes(const cv::Mat& input)
 	// 3. Detect bread (if exists): width/BREAD_FACTOR * height/BREAD_FACTOR rectangles with strides of width/(2*BREAD_FACTOR) and height/(2*BREAD_FACTOR)
 	for (int x = 0; x < source_image.cols; x += source_image.cols / (2 * BREAD_FACTOR))
 		for (int y = 0; y < source_image.rows; y += source_image.rows / (2 * BREAD_FACTOR))
-			bread.push_back(cv::Rect(x, y, source_image.cols / BREAD_FACTOR, source_image.rows / BREAD_FACTOR));
+		{
+			bread.push_back(cv::Rect(x, y,
+				x + source_image.cols / BREAD_FACTOR > source_image.cols // Check if we are at the last rectangle of the row
+					? source_image.cols - x                              // If so, set the width to the remaining width
+					: source_image.cols / BREAD_FACTOR,                  // If not, set the width to the default width
+				y + source_image.rows / BREAD_FACTOR > source_image.rows // Check if we are at the last rectangle of the col
+					? source_image.rows - y                              // If so, set the height to the remaining height
+					: source_image.rows / BREAD_FACTOR                   // If not, set the height to the default height
+			));
+		}
 
 	// Show debug image
 	if (DEBUG) { cv::imshow("DEBUG: Bounding Boxes", debug_image); cv::waitKey(0); }
