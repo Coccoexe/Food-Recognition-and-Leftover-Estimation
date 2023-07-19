@@ -10,11 +10,13 @@ public:
 	Segmentation(cv::Mat& p, std::vector<int> l);
 	cv::Mat getSegments() const { return segments; }
 	std::vector<std::pair<int, int>> getAreas() const { return areas; }
+	std::vector<std::pair<int, cv::Rect>> getBoxes() const { return boxes; }
 
 private:
 	cv::Mat plate;
 	const std::vector<int> labels;
 	cv::Mat segments;
+	std::vector<std::pair<int, cv::Rect>> boxes;
 	std::vector<std::pair<int, int>> areas;
 	void correction(cv::Mat& in, cv::Mat& out);
 	void process(cv::Mat& ranged, cv::Mat& out);

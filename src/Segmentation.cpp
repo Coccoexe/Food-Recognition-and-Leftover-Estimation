@@ -50,6 +50,28 @@ Segmentation::Segmentation(cv::Mat& p, std::vector<int> l)
 		cv::threshold(mask, mask, 0, label, cv::THRESH_BINARY);
 		mask = mask - segments * 255;
 		segments = segments | mask;
+		
+		//if all black, skip
+		if (cv::countNonZero(mask) != 0) {
+
+			//find bounding box of mask
+			std::vector<std::vector<cv::Point>> contours;
+			cv::findContours(mask, contours, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
+			std::vector<cv::Rect> box(contours.size());
+			for (size_t i = 0; i < contours.size(); i++)
+				box[i] = cv::boundingRect(contours[i]);
+			auto min = std::min_element(box.begin(), box.end(), [](const cv::Rect& a, const cv::Rect& b) {return a.area() < b.area(); });
+			boxes.push_back(std::make_pair(label, *min));
+
+			//show bounding box
+			if (DEBUG)
+			{
+				cv::Mat tmp = plate.clone();
+				cv::rectangle(tmp, *min, cv::Scalar(0, 255, 0), 2);
+				cv::imshow("bounding box", tmp);
+				cv::waitKey(0);
+			}
+		}
 
 		//find area of mask
 		std::vector<std::vector<cv::Point>> contours;
@@ -58,8 +80,8 @@ Segmentation::Segmentation(cv::Mat& p, std::vector<int> l)
 		for (const auto& contour : contours)
 			area += cv::contourArea(contour);
 		areas.push_back(std::make_pair(label, area));
-
 	}
+
 	if (DEBUG)
 	{
 		cv::imshow("segments", segments * 15);

@@ -16,13 +16,14 @@
 #include <string>
 #include <vector>
 #include <cmath>
+#include <format>
 
 #include <opencv2/opencv.hpp>
 #include <opencv2/imgproc.hpp>
 
 #include <Python.h>
 
-#define DEBUG true
+#define DEBUG false
 #define SKIP true
 
 using namespace std;
@@ -112,6 +113,7 @@ int main()
 	const vector<string> IMAGE_NAMES = { "food_image", "leftover1", "leftover2", "leftover3" };
 	const string PLATES_PATH = "./plates/";
 	const string LABELS_PATH = "./labels/";
+	const string OUTPUT_PATH = "./output/";
 	auto cutout = [](const cv::Mat& image, const cv::Vec3f& circle) -> cv::Mat
 	{
 		const int x = cvRound(circle[0] - circle[2]) > 0 ? cvRound(circle[0] - circle[2]) : 0;
@@ -143,10 +145,12 @@ int main()
 
 	// Process
 	if (!filesystem::exists(PLATES_PATH)) filesystem::create_directory(PLATES_PATH);
+	if (!filesystem::exists(OUTPUT_PATH)) filesystem::create_directory(OUTPUT_PATH);
 	for (int i = 1; i <= NUMBER_OF_TRAYS; i++)
 	{	// For each tray
 
 		if (!filesystem::exists(PLATES_PATH + "tray" + to_string(i) + "/")) filesystem::create_directory(PLATES_PATH + "tray" + to_string(i) + "/");
+		if (!filesystem::exists(OUTPUT_PATH + "tray" + to_string(i) + "/")) filesystem::create_directory(OUTPUT_PATH + "tray" + to_string(i) + "/");
 		queue<BoundingBoxes> bb;
 		for (const auto& imgname : IMAGE_NAMES)
 		{	// For each image
@@ -183,7 +187,7 @@ int main()
 
 			// tray_mask
 			cv::Mat tray_mask = cv::Mat::zeros(image.size(), CV_8UC1);
-
+			vector<string> boxes;
 
 			// Plates
 			for (int j = 0; j < files.size(); j++)
@@ -193,13 +197,23 @@ int main()
 				string category;
 				while (getline(infile, category)) labels.push_back(stoi(category));
 				infile.close();
-	
+
 				// Segmentation
 				cv::Mat plate_image = cv::imread(files[j]);
 				Segmentation seg(plate_image, labels);
 				cv::Mat mask = seg.getSegments();
 				vector<pair<int, int>> plate_areas = seg.getAreas();
-
+				vector<pair<int, cv::Rect>> box = seg.getBoxes();
+				for (int k = 0; k < box.size(); k++)
+				{
+					int label = box[k].first;
+					int x = box[k].second.x + plates[j][0] - plates[j][2];
+					int y = box[k].second.y + plates[j][1] - plates[j][2];
+					int w = box[k].second.width;
+					int h = box[k].second.height;
+					boxes.push_back("ID: " + to_string(label) + "; [" + to_string(x) + ", " + to_string(y) + ", " + to_string(w) + ", " + to_string(h) + "]");
+				}
+				// add mask to tray_mask
 				for (int k = 0; k < mask.rows; k++)
 					for (int l = 0; l < mask.cols; l++)
 						if (pow(k - plates[j][2], 2) + pow(l - plates[j][2], 2) <= pow(plates[j][2], 2)) //if (mask.at<uchar>(k,l) != 0)
@@ -209,13 +223,15 @@ int main()
 			}
 
 			if (DEBUG) {
-				//cv::imshow("tray_mask", tray_mask * 15);
-				//cv::waitKey(0);
+				cv::imshow("tray_mask", tray_mask * 15);
+				cv::waitKey(0);
 			}
 
 			// Salad
 			if (salad.first)
 			{	// TODO: implement salad segmentation
+
+				const int label = 12;
 				cv::Mat salad_image = cutout(image, salad.second);
 
 				//gamma correction
@@ -237,14 +253,23 @@ int main()
 				int sat = 206;
 
 				cv::Mat mask;
-				cv::threshold(hsv_channels[1], mask, sat, 12, cv::THRESH_BINARY);
+				cv::threshold(hsv_channels[1], mask, sat, label, cv::THRESH_BINARY);
 				mask = process(mask, salad_image);
 
-				if (DEBUG)
-				{
-					cv::imshow("mask", mask);
-					cv::waitKey(0);
-				}
+				//find bounding box of mask
+				std::vector<std::vector<cv::Point>> contours;
+				cv::findContours(mask, contours, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
+				std::vector<cv::Rect> box(contours.size());
+				for (size_t i = 0; i < contours.size(); i++)
+					box[i] = cv::boundingRect(contours[i]);
+				auto min = std::min_element(box.begin(), box.end(), [](const cv::Rect& a, const cv::Rect& b) {return a.area() < b.area(); });
+
+				int x = min->x + salad.second[0] - salad.second[2];
+				int y = min->y + salad.second[1] - salad.second[2];
+				int w = min->width;
+				int h = min->height;
+				boxes.push_back("ID: " + to_string(label) + "; [" + to_string(x) + ", " + to_string(y) + ", " + to_string(w) + ", " + to_string(h) + "]");
+
 
 				for (int k = 0; k < mask.rows; k++)
 					for (int l = 0; l < mask.cols; l++)
@@ -262,6 +287,33 @@ int main()
 			if (bread.first)
 			{	// TODO: implement bread segmentation
 			}
+
+			//write bounding boxes
+			if (!filesystem::exists(OUTPUT_PATH + "tray" + to_string(i) + "/bounding_boxes/")) filesystem::create_directory(OUTPUT_PATH + "tray" + to_string(i) + "/bounding_boxes/");
+			for (int k = 0; k < boxes.size(); k++)
+			{
+				if (DEBUG) cout << imgname + " " + boxes[k] << endl;
+
+				std::ofstream file;
+				string path = OUTPUT_PATH + "tray" + to_string(i) + "/bounding_boxes/" + imgname + "_bounding_boxes.txt";
+
+				if (k == 0)
+					file = std::ofstream(path);
+				else
+					file = std::ofstream(path, std::ios_base::app);
+
+				if (file.is_open())
+				{
+					if (k < boxes.size() - 1)
+						file << boxes[k] << endl;
+					else
+						file << boxes[k];
+				}
+			}
+
+			//write tray mask
+			if (!filesystem::exists(OUTPUT_PATH + "tray" + to_string(i) + "/masks/")) filesystem::create_directory(OUTPUT_PATH + "tray" + to_string(i) + "/masks/");
+			cv::imwrite(OUTPUT_PATH + "tray" + to_string(i) + "/masks/" + imgname + "_mask.png", tray_mask);
 		}
 
 	}
