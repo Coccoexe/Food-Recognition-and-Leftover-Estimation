@@ -295,115 +295,6 @@ int main()
 				for (const auto circle : plates)
 					cv::circle(bread, cv::Point(circle[0], circle[1]), circle[2], cv::Scalar(0, 0, 0), -1);
 
-				//hsv
-				cv::Mat bread_hsv;
-				cv::cvtColor(bread, bread_hsv, cv::COLOR_BGR2HSV);
-				vector<cv::Mat> bread_hsv_channels;
-				cv::split(bread_hsv, bread_hsv_channels);
-				//equalize
-				cv::equalizeHist(bread_hsv_channels[1], bread_hsv_channels[1]);
-				cv::equalizeHist(bread_hsv_channels[2], bread_hsv_channels[2]);
-				cv::merge(bread_hsv_channels, bread_hsv);
-				cv::cvtColor(bread_hsv, bread, cv::COLOR_HSV2BGR);
-
-				int bMin1 = 0;
-				int bMax1 = 127;
-				int bMin2 = 128;
-				int bMax2 = 255;
-				int gMin1 = 0;
-				int gMax1 = 127;
-				int gMin2 = 128;
-				int gMax2 = 255;
-				int rMin1 = 0;
-				int rMax1 = 127;
-				int rMin2 = 128;
-				int rMax2 = 255;
-
-				cv::namedWindow("trackbars", cv::WINDOW_AUTOSIZE);
-				cv::createTrackbar("bMin1", "trackbars", &bMin1, 255);
-				cv::createTrackbar("bMax1", "trackbars", &bMax1, 255);
-				cv::createTrackbar("bMin2", "trackbars", &bMin2, 255);
-				cv::createTrackbar("bMax2", "trackbars", &bMax2, 255);
-				cv::createTrackbar("gMin1", "trackbars", &gMin1, 255);
-				cv::createTrackbar("gMax1", "trackbars", &gMax1, 255);
-				cv::createTrackbar("gMin2", "trackbars", &gMin2, 255);
-				cv::createTrackbar("gMax2", "trackbars", &gMax2, 255);
-				cv::createTrackbar("rMin1", "trackbars", &rMin1, 255);
-				cv::createTrackbar("rMax1", "trackbars", &rMax1, 255);
-				cv::createTrackbar("rMin2", "trackbars", &rMin2, 255);
-				cv::createTrackbar("rMax2", "trackbars", &rMax2, 255);
-
-				while (true)
-				{
-					cv::Mat mask1, mask2, mask;
-
-					//cv::threshold(bread_hsv_channels[1], mask1, sat1, 255, cv::THRESH_BINARY);
-					//cv::threshold(bread_hsv_channels[1], mask2, sat2, 255, cv::THRESH_BINARY);
-
-					//to bgr
-					cv::Mat bread_bgr1, bread_bgr2;
-					cv::cvtColor(bread, bread_bgr1, cv::COLOR_HSV2BGR);
-					cv::cvtColor(bread, bread_bgr2, cv::COLOR_HSV2BGR);
-
-					cv::inRange(bread_bgr1, cv::Scalar(bMin1, gMin1, rMin1), cv::Scalar(bMax1, gMax1, rMax1), mask1);
-					cv::inRange(bread_bgr2, cv::Scalar(bMin2, gMin2, rMin2), cv::Scalar(bMax2, gMax2, rMax2), mask2);
-					mask = mask1 | mask2;
-					cv::Mat temp;
-					cv::copyTo(bread, temp, mask);
-					cv::imshow("mask", temp);
-					
-					
-					if (cv::waitKey(1) == 27) break;
-
-					bMin1 = cv::getTrackbarPos("bMin1", "trackbars");
-					bMax1 = cv::getTrackbarPos("bMax1", "trackbars");
-					bMin2 = cv::getTrackbarPos("bMin2", "trackbars");
-					bMax2 = cv::getTrackbarPos("bMax2", "trackbars");
-					gMin1 = cv::getTrackbarPos("gMin1", "trackbars");
-					gMax1 = cv::getTrackbarPos("gMax1", "trackbars");
-					gMin2 = cv::getTrackbarPos("gMin2", "trackbars");
-					gMax2 = cv::getTrackbarPos("gMax2", "trackbars");
-					rMin1 = cv::getTrackbarPos("rMin1", "trackbars");
-					rMax1 = cv::getTrackbarPos("rMax1", "trackbars");
-					rMin2 = cv::getTrackbarPos("rMin2", "trackbars");
-					rMax2 = cv::getTrackbarPos("rMax2", "trackbars");
-				}
-
-				/*cv::Mat bread_canny;
-				cv::Canny(bread, bread_canny, 60, 200);
-				vector<vector<cv::Point>> bread_contours;
-				cv::findContours(bread_canny, bread_contours, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
-				cv::Mat bread_mask = cv::Mat::zeros(bread.size(), CV_8UC1);
-				cv::drawContours(bread_mask, bread_contours, -1, cv::Scalar(255), 25);
-				cv::erode(bread_mask, bread_mask, cv::Mat(), cv::Point(-1, -1), 35);
-				cv::dilate(bread_mask, bread_mask, cv::Mat(), cv::Point(-1, -1), 10);
-				cv::imshow("bread_mask", bread_mask);
-				cv::threshold(bread_mask, bread_mask, 0, 1, cv::THRESH_BINARY);
-
-				cv::Mat bread_gray = cv::Mat::zeros(bread.size(), CV_8UC1);
-				bread_gray.setTo(cv::GC_PR_BGD);
-				cv::Mat weights;
-				cv::addWeighted(bread_mask, 1, bread_gray, 1, 0, weights);
-
-				cv::Mat bgdModel, fgdModel;
-				cv::grabCut(bread, weights, cv::Rect(), bgdModel, fgdModel, 1, cv::GC_INIT_WITH_MASK);
-
-				cv::Mat1b mask_fgpf = (weights == cv::GC_PR_FGD) | (weights == cv::GC_FGD);
-				cv::Mat3b bread_fgpf = cv::Mat3b::zeros(bread.size());
-				bread.copyTo(bread_fgpf, mask_fgpf);
-
-				cv::imshow("bread_fgpf", bread_fgpf);
-				cv::waitKey(0);
-
-
-
-				cv::Mat fgModel, bgModel;
-				cv::grabCut(bread, bread_mask, cv::Rect(), bgModel, fgModel, 1, cv::GC_INIT_WITH_MASK);*/
-				
-
-
-
-
 				// TESTS DOWN HERE
 				/*
 				//gamma correction
@@ -513,41 +404,41 @@ int main()
 			cv::imwrite(OUTPUT_PATH + "tray" + to_string(i) + "/masks/" + imgname + "_mask.png", tray_mask);
 
 			// METRICS: update the 'metrics' vector
-			const string BOXES_PATH = DATASET_PATH + "tray" + to_string(i) + "/bounding_boxes/";
-			const string MASK_PATH = DATASET_PATH + "tray" + to_string(i) + "/masks/";
-			vector<string> boxes_files, mask_files;        // Vector of strings to store paths of bounding boxes and masks files
-			cv::glob(BOXES_PATH + "*.txt", boxes_files);   // Get all bounding boxes files
-			cv::glob(MASK_PATH + "*", mask_files);         // Get all mask files
-			
-			for (int k = 0; k < boxes_files.size(); k++)
-			{   // For each bounding box file [k] in tray [i]
-				vector<pair<int, cv::Rect>> original_boxes;   // Vector of pairs to store the original boxes from the assignment
-				ifstream file(boxes_files[k]);
-				if (file.is_open())
-				{   // Read the file and store the boxes in the vector
-					string line;   // Line read from the file
-					while (getline(file, line))
-					{   // For each line 'line' in the file
-						int id_start = line.find(":") + 2;    // Start of the id in the line
-						int id_end = line.find(";");          // End of the id in the line
-						int box_start = line.find("[") + 1;   // Start of the box in the line
-						int box_end = line.find("]");         // End of the box in the line
+			const string BOXES_PATH = DATASET_PATH + "tray" + to_string(i) + "/bounding_boxes/" + imgname + "_bounding_box.txt";
+			string MASK_PATH = DATASET_PATH + "tray" + to_string(i) + "/masks/" + imgname;
+			if (imgname == "food_image") MASK_PATH += "_mask";
+			MASK_PATH += ".png";
+			//vector<string> boxes_files, mask_files;        // Vector of strings to store paths of bounding boxes and masks files
+			//cv::glob(BOXES_PATH + "*.txt", boxes_files);   // Get all bounding boxes files
+			//cv::glob(MASK_PATH + "*", mask_files);         // Get all mask files
+			vector<pair<int, cv::Rect>> original_boxes;   // Vector of pairs to store the original boxes from the assignment
+			ifstream file(BOXES_PATH);
+			if (file.is_open())
+			{
+				string line;   // Line read from the file
+				while (getline(file, line))
+				{   // For each line 'line' in the file
+					int id_start = line.find(":") + 2;    // Start of the id in the line
+					int id_end = line.find(";");          // End of the id in the line
+					int box_start = line.find("[") + 1;   // Start of the box in the line
+					int box_end = line.find("]");         // End of the box in the line
 
-						string id = line.substr(id_start, id_end - id_start);      // Extract the id
-						string box = line.substr(box_start, box_end - box_start);  // Extract the box
+					string id = line.substr(id_start, id_end - id_start);      // Extract the id
+					string box = line.substr(box_start, box_end - box_start);  // Extract the box
 
-						istringstream iss(box);                                                               // Create a string stream from the box
-						vector<string> tokens{ istream_iterator<string>{iss}, istream_iterator<string>{} };   // Split the box into tokens
-						cv::Rect tmp(stoi(tokens[0]), stoi(tokens[1]), stoi(tokens[2]), stoi(tokens[3]));     // Create a rectangle from the box
-						original_boxes.push_back(make_pair(stoi(id), tmp));                                   // Add the pair to the vector
-					}
-					file.close();
+					istringstream iss(box);                                                               // Create a string stream from the box
+					vector<string> tokens{ istream_iterator<string>{iss}, istream_iterator<string>{} };   // Split the box into tokens
+					cv::Rect tmp(stoi(tokens[0]), stoi(tokens[1]), stoi(tokens[2]), stoi(tokens[3]));     // Create a rectangle from the box
+					original_boxes.push_back(make_pair(stoi(id), tmp));                                   // Add the pair to the vector
 				}
-				cv::Mat original_mask = cv::imread(mask_files[k]);                                            // Read the mask file from the assignment
-				metrics.back().push_back(make_tuple(tray_mask, tray_boxes, original_mask, original_boxes));   // Add the tuple to the 'metrics' vector
+				file.close();
 			}
+			cv::Mat original_mask = cv::imread(MASK_PATH);   // Read the mask
+			metrics.back().push_back(make_tuple(tray_mask, tray_boxes, original_mask, original_boxes));   // Add the metric to the vector
 		}
 	}
+
+	Metrics m(metrics);
 
 	// Python finalization
 	Py_Finalize();

@@ -7,9 +7,14 @@
 class Metrics
 {
 public:
-	Metrics(cv::Mat& m, std::vector<std::pair<int, cv::Rect>> b, cv::Mat& o_m, std::vector<std::pair<int, cv::Rect>> o_b);
+	Metrics(std::vector<std::vector<std::tuple<cv::Mat,std::vector<std::pair<int, cv::Rect>>,cv::Mat,std::vector<std::pair<int, cv::Rect>>>>>& m);
 
 private:
-	cv::Mat mask, orig_mask;
-	const std::vector<std::pair<int, cv::Rect>> boxes, orig_boxes;
+	const std::vector<std::vector<std::tuple<cv::Mat, std::vector<std::pair<int, cv::Rect>>, cv::Mat, std::vector<std::pair<int, cv::Rect>>>>> metrics;
+	std::vector<int> false_positives;
+	std::vector<int> false_negatives;
+	std::vector<int> true_positives;
+	std::vector<std::vector<double>> precision;
+	std::vector<std::vector<double>> recall;
+	std::vector<double> average_precision;
 };
