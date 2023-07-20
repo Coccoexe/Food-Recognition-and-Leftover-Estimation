@@ -62,7 +62,7 @@ Metrics::Metrics(std::vector<std::vector<std::tuple<cv::Mat, std::vector<std::pa
 		std::vector<std::pair<int, cv::Rect>> labeled_box = std::get<1>(metrics[i][0]);			// labels computed by segmentation
 		std::vector<std::pair<int, cv::Rect>> orig_labeled_box = std::get<3>(metrics[i][0]);	// labels computed by ground truth
 
-		std::vector<std::string> food_leftover;
+		std::vector<std::vector<std::string>> food_leftover = std::vector<std::vector<std::string>>(3, std::vector<std::string>()); // food leftover for each tray
 
 		if (DEBUG) std::cout << "Tray " << i << std::endl;
 
@@ -101,10 +101,12 @@ Metrics::Metrics(std::vector<std::vector<std::tuple<cv::Mat, std::vector<std::pa
 					std::cout << "Actual leftover of food " << olb.first << " = " << actual_leftover << std::endl;
 					std::cout << "Difference = " << abs(estimated_leftover - actual_leftover) << std::endl;
 				}
-				std::string temp = "      Real Leftover: " + std::to_string(actual_leftover) + "\n" +
+
+				std::string temp = "Food " + std::to_string(olb.first) + "\n" +
+					"      Real Leftover: " + std::to_string(actual_leftover) + "\n" +
 					"      Estimated Leftover: " + std::to_string(estimated_leftover) + "\n" +
 					"      Difference: " + std::to_string(abs(estimated_leftover - actual_leftover));
-				food_leftover.push_back(temp);
+				food_leftover[j - 1].push_back(temp);
 			}
 		}
 
@@ -115,7 +117,10 @@ Metrics::Metrics(std::vector<std::vector<std::tuple<cv::Mat, std::vector<std::pa
 		for (int j = 0; j < food_leftover.size(); j++)
 		{
 			file << "Leftover " << j + 1 << std::endl;
-			file << food_leftover[j] << std::endl;
+			for (int k = 0; k < food_leftover[j].size(); k++)
+			{
+				file << food_leftover[j][k] << std::endl;
+			}
 		}
 		file << std::endl;
 	}

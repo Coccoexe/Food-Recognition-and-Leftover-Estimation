@@ -237,6 +237,7 @@ int main()
 				
 				// Morphological operations
 				mask = process(mask);
+				cv::threshold(mask, mask, 0, LABEL, cv::THRESH_BINARY);
 
 				// Find the bounding box of the salad
 				std::vector<std::vector<cv::Point>> contours;                                   // Vector of vectors of points containing the contours of the salad
