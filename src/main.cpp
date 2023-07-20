@@ -429,7 +429,7 @@ int main()
 				}
 				file.close();
 			}
-			cv::Mat original_mask = cv::imread(MASK_PATH);   // Read the mask
+			cv::Mat original_mask = cv::imread(MASK_PATH, cv::IMREAD_GRAYSCALE);                          // Read the mask in GRAYSCALE mode
 			metrics.back().push_back(make_tuple(tray_mask, tray_boxes, original_mask, original_boxes));   // Add the metric to the vector
 		}
 	}
