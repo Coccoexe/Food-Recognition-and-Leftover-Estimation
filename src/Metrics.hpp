@@ -7,13 +7,15 @@
 class Metrics
 {
 public:
-	Metrics(std::vector<std::vector<std::tuple<cv::Mat,std::vector<std::pair<int, cv::Rect>>,cv::Mat,std::vector<std::pair<int, cv::Rect>>>>>& m);
+    Metrics(std::vector<std::vector<std::tuple<cv::Mat, std::vector<std::pair<int, cv::Rect>>, cv::Mat, std::vector<std::pair<int, cv::Rect>>>>>& m);
 
 private:
-	const std::vector<std::vector<std::tuple<cv::Mat, std::vector<std::pair<int, cv::Rect>>, cv::Mat, std::vector<std::pair<int, cv::Rect>>>>> metrics;
-	std::vector<double> false_positives;
-	std::vector<double> false_negatives;
-	std::vector<double> true_positives;
-	std::vector<std::vector<double>> precision;
-	std::vector<std::vector<double>> recall;
+    const std::vector<std::vector<std::tuple<cv::Mat, std::vector<std::pair<int, cv::Rect>>, cv::Mat, std::vector<std::pair<int, cv::Rect>>>>> metrics;
+    std::vector<double> false_positives;
+    std::vector<double> false_negatives;
+    std::vector<double> true_positives;
+    std::vector<std::vector<double>> precision;
+    std::vector<std::vector<double>> recall;
+    std::vector<std::vector<double>> IoU;
+    std::vector<double> average_precision;
 };
