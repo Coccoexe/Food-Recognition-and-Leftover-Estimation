@@ -7,12 +7,12 @@ Segmentation::Segmentation(cv::Mat& p, std::vector<int> l)
 {
 	segments = cv::Mat::zeros(plate.size(), CV_8UC1);
 
-	//correction
+	// Correction
 	cv::Mat corrected;
 	correction(plate, corrected);
 	if (DEBUG) cv::imshow("corrected", corrected);
 
-	//segmentation
+	// Segmentation
 	for (const auto label : labels)
 	{
 		if (label == 12) continue;
@@ -21,21 +21,22 @@ Segmentation::Segmentation(cv::Mat& p, std::vector<int> l)
 		cv::inRange(corrected, c_ranges[label].first, c_ranges[label].second, ranged);
 		process(ranged, mask);
 
-		//if label seafood salad and beans are both present
+		// If label seafood salad and beans are both present
 		if (label == 9 and std::find(labels.begin(), labels.end(), 10) != labels.end())
 		{
 			cv::Mat tmp, beans;
 			cv::inRange(corrected, c_ranges[10].first, c_ranges[10].second, tmp);
 			process(tmp, beans);
-			//remove beans from mask
+
+			// Remove beans from mask
 			cv::bitwise_not(beans, beans);
 			cv::bitwise_and(mask, beans, mask);
 			
-			//opening
+			// Morphological opening
 			cv::Mat kernel = cv::getStructuringElement(cv::MORPH_ELLIPSE, cv::Size(5, 5));
 			cv::morphologyEx(mask, mask, cv::MORPH_OPEN, kernel);
 
-			//keep only largest connected component
+			// Keep only largest connected component
 			std::vector<std::vector<cv::Point>> contours;
 			cv::findContours(mask, contours, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
 			std::vector<double> areas(contours.size());
@@ -51,10 +52,9 @@ Segmentation::Segmentation(cv::Mat& p, std::vector<int> l)
 		mask = mask - segments * 255;
 		segments = segments | mask;
 		
-		//if all black, skip
+		// If all black, skip
 		if (cv::countNonZero(mask) != 0) {
-
-			//find bounding box of mask
+			// Find bounding box of mask
 			std::vector<std::vector<cv::Point>> contours;
 			cv::findContours(mask, contours, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
 			std::vector<cv::Rect> box(contours.size());
@@ -63,7 +63,7 @@ Segmentation::Segmentation(cv::Mat& p, std::vector<int> l)
 			auto min = std::min_element(box.begin(), box.end(), [](const cv::Rect& a, const cv::Rect& b) {return a.area() < b.area(); });
 			boxes.push_back(std::make_pair(label, *min));
 
-			//show bounding box
+			// Show bounding box
 			if (DEBUG)
 			{
 				cv::Mat tmp = plate.clone();
@@ -84,7 +84,7 @@ Segmentation::Segmentation(cv::Mat& p, std::vector<int> l)
 
 void Segmentation::correction(cv::Mat& in, cv::Mat& out)
 {
-	//gamma transform
+	// Gamma transform
 	cv::Mat gamma;
 	cv::Mat lookUpTable(1, 256, CV_8U);
 	uchar* p = lookUpTable.ptr();
@@ -93,7 +93,7 @@ void Segmentation::correction(cv::Mat& in, cv::Mat& out)
 		p[i] = cv::saturate_cast<uchar>(pow(i / 255.0, gamma_) * 255.0);
 	cv::LUT(in, lookUpTable, gamma);
 
-	//image to hsv
+	// Image to hsv
 	cv::Mat hsv;
 	cv::cvtColor(gamma, hsv, cv::COLOR_BGR2HSV);
 	std::vector<cv::Mat> hsv_channels;
@@ -124,14 +124,14 @@ void Segmentation::process(cv::Mat& in, cv::Mat& out)
 		cv::bitwise_not(ff, inversed_ff);
 		input = (input | inversed_ff);
 	};
-	//median
+	// Median
 	cv::medianBlur(in, in, 5);
 
-	//closing
+	// Closing
 	cv::Mat kernel = cv::getStructuringElement(cv::MORPH_ELLIPSE, cv::Size(50, 50)); //changed from 40x40
 	cv::morphologyEx(in, in, cv::MORPH_CLOSE, kernel);
 
-	//dilation
+	// Dilation
 	out = cv::Mat::zeros(in.size(), CV_8UC1);
 	filterAreas(in, out, 8000);
 	cv::dilate(out, out, cv::getStructuringElement(cv::MORPH_ELLIPSE, cv::Size(25, 25))); //changed from 15x15

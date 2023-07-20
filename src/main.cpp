@@ -107,15 +107,15 @@ int main()
 	};
 
 	// Python initialization for CLIP
-	Py_Initialize();												    //
-	PyEval_InitThreads();											    //
-	PyRun_SimpleString("import sys");								    //     ____        __  __
-	PyRun_SimpleString("sys.path.append('../../../src/Python/')");	    //    / __ \__  __/ /_/ /_  ____  ____
-	PyRun_SimpleString("sys.argv = ['CLIP_interface.py']");			    //   / /_/ / / / / __/ __ \/ __ \/ __ \*
-	PyObject* pName = PyUnicode_FromString("CLIP_interface");		    //  / ____/ /_/ / /_/ / / / /_/ / / / /
-	PyObject* pModule = PyImport_ImportModule("CLIP_interface");	    // /_/    \__, /\__/_/ /_/\____/_/ /_/
-	PyObject* pFunc = PyObject_GetAttrString(pModule, "plates");	    //       /____/
-	PyObject* pArgs = PyTuple_New(1);								    //
+	Py_Initialize();											   //
+	PyEval_InitThreads();										   //
+	PyRun_SimpleString("import sys");							   //     ____        __  __
+	PyRun_SimpleString("sys.path.append('./Python/')");	           //    / __ \__  __/ /_/ /_  ____  ____
+	PyRun_SimpleString("sys.argv = ['CLIP_interface.py']");		   //   / /_/ / / / / __/ __ \/ __ \/ __ \*
+	PyObject* pName = PyUnicode_FromString("CLIP_interface");	   //  / ____/ /_/ / /_/ / / / /_/ / / / /
+	PyObject* pModule = PyImport_ImportModule("CLIP_interface");   // /_/    \__, /\__/_/ /_/\____/_/ /_/
+	PyObject* pFunc = PyObject_GetAttrString(pModule, "plates");   //       /____/
+	PyObject* pArgs = PyTuple_New(1);							   //
 
 	// START OF THE MAIN LOOP
 	if (!filesystem::exists(PLATES_PATH)) filesystem::create_directory(PLATES_PATH); 
@@ -237,7 +237,7 @@ int main()
 				
 				// Morphological operations
 				mask = process(mask);
-				cv::threshold(mask, mask, 0, LABEL, cv::THRESH_BINARY);
+				cv::threshold(mask, mask, 0, LABEL, cv::THRESH_BINARY);   // Thresholding again to the correct label
 
 				// Find the bounding box of the salad
 				std::vector<std::vector<cv::Point>> contours;                                   // Vector of vectors of points containing the contours of the salad
@@ -268,34 +268,29 @@ int main()
 
 			// BREAD: Process the bread in the image
 			if (bread.first)
-			{	// Bread segmentation, if the bread is present in the image (CLIP found bread in one of the subimages)
-				const int LABEL = 13;
+			{	// If the bread is present in the image
+				const int LABEL = 13;   // Label of the bread, as defined in the assignment
 
 				cv::Mat bread_mask;
-				cv::threshold(bread.second, bread_mask, 0, LABEL, cv::THRESH_BINARY);
+				cv::threshold(bread.second, bread_mask, 0, LABEL, cv::THRESH_BINARY);   // Thresholding to the correct label
 				
-				// bounding box
+				// Bounding box
 				std::vector<std::vector<cv::Point>> contours;
 				cv::findContours(bread_mask, contours, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
-				std::vector<cv::Rect> box(contours.size());
+				cv::Rect box = cv::boundingRect(contours[0]);
 
-				for (int i = 0; i < contours.size(); i++)
-					box[i] = cv::boundingRect(contours[i]);
-				auto min = std::min_element(box.begin(), box.end(), [](const cv::Rect& a, const cv::Rect& b) { return a.area() < b.area(); });
+				// Coordinates
+				int x = box.x;
+				int y = box.y;
+				int w = box.width;
+				int h = box.height;
 
-				// get Rect coordinates
-				int x = min->x;
-				int y = min->y;
-				int w = min->width;
-				int h = min->height;
-				
+				// Add the bounding box to the list of bounding boxes
 				boxes.push_back("ID: " + to_string(LABEL) + "; [" + to_string(x) + ", " + to_string(y) + ", " + to_string(w) + ", " + to_string(h) + "]");
 				tray_boxes.push_back(std::make_pair(LABEL, cv::Rect(x, y, w, h)));
-
 				tray_mask = tray_mask + bread_mask;
 
 				if (DEBUG) cv::imshow("w/bread", tray_mask * 15); cv::waitKey(0);
-
 			}
 
 			// Write bounding boxes to file
@@ -321,9 +316,7 @@ int main()
 			string MASK_PATH = DATASET_PATH + "tray" + to_string(i) + "/masks/" + imgname;
 			if (imgname == "food_image") MASK_PATH += "_mask";
 			MASK_PATH += ".png";
-			//vector<string> boxes_files, mask_files;        // Vector of strings to store paths of bounding boxes and masks files
-			//cv::glob(BOXES_PATH + "*.txt", boxes_files);   // Get all bounding boxes files
-			//cv::glob(MASK_PATH + "*", mask_files);         // Get all mask files
+
 			vector<pair<int, cv::Rect>> original_boxes;   // Vector of pairs to store the original boxes from the assignment
 			ifstream file(BOXES_PATH);
 			if (file.is_open())
@@ -351,6 +344,7 @@ int main()
 		}
 	}
 
+	// METRICS: compute the metrics
 	Metrics m(metrics);
 
 	// Python finalization

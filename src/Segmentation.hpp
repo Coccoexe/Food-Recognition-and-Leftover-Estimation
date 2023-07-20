@@ -7,6 +7,11 @@
 class Segmentation
 {
 public:
+	/**
+	 * @brief Construct a new Segmentation object, segmenting the plate into the different dishes.
+	 * @param p The plate image.
+	 * @param l The labels of the dishes.
+	 */
 	Segmentation(cv::Mat& p, std::vector<int> l);
 	cv::Mat getSegments() const { return segments; }
 	std::vector<std::pair<int, cv::Rect>> getBoxes() const { return boxes; }
@@ -16,10 +21,20 @@ private:
 	const std::vector<int> labels;
 	cv::Mat segments;
 	std::vector<std::pair<int, cv::Rect>> boxes;
+	/**
+	 * @brief Gamma correction and HSV conversion.
+	 * @param in The input image.
+	 * @param out The output image.
+	 */
 	void correction(cv::Mat& in, cv::Mat& out);
+	/**
+	 * @brief Morphological operations.
+	 * @param ranged The input image.
+	 * @param out The output image.
+	 */
 	void process(cv::Mat& ranged, cv::Mat& out);
 
-	//rgb min and max ranges
+	// BGR min and max ranges
 	const std::vector<std::pair<cv::Scalar,cv::Scalar>> c_ranges = {
 		std::make_pair<cv::Scalar,cv::Scalar>(cv::Scalar(0,0,0), cv::Scalar(0,0,0)),			// black
 		std::make_pair<cv::Scalar,cv::Scalar>(cv::Scalar(2,109,168), cv::Scalar(59,167,255)),	// pasta with pesto
@@ -33,7 +48,7 @@ private:
 		std::make_pair<cv::Scalar,cv::Scalar>(cv::Scalar(0,28,139), cv::Scalar(62,92,255)),		// seafood salad
 		std::make_pair<cv::Scalar,cv::Scalar>(cv::Scalar(14,38,0),cv::Scalar(24,71,180)),		// beans
 		std::make_pair<cv::Scalar,cv::Scalar>(cv::Scalar(0,156,158), cv::Scalar(104,255,219)),	// basil potatoes
-		std::make_pair<cv::Scalar,cv::Scalar>(cv::Scalar(0,0,0), cv::Scalar(0,0,0)),			// salad //for CLIP this is empty plate
-		std::make_pair<cv::Scalar,cv::Scalar>(cv::Scalar(0,0,0), cv::Scalar(0,0,0))				// bread //never appears in CLIP
+		std::make_pair<cv::Scalar,cv::Scalar>(cv::Scalar(0,0,0), cv::Scalar(0,0,0)),			// salad // for CLIP this is empty plate
+		std::make_pair<cv::Scalar,cv::Scalar>(cv::Scalar(0,0,0), cv::Scalar(0,0,0))				// bread // never appears in CLIP
 	};
 };
