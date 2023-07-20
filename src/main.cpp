@@ -141,14 +141,10 @@ int main()
 			cv::Mat image = cv::imread(DATASET_PATH + "tray" + to_string(i) + "/" + imgname + ".jpg");   // Read the image
 			bb.push(BoundingBoxes(image));                                                               // Push the BoundingBoxes object into the queue
 			
-			// Save plates and bread cutouts
+			// Save plates cutouts
 			vector<cv::Vec3f> plates = bb.back().getPlates();
-			std::vector<cv::Rect> bread = bb.back().getBread();
-
 			for (int j = 0; j < plates.size(); j++)
 				cv::imwrite(PLATES_PATH + "tray" + to_string(i) + "/" + imgname + "/plate" + to_string(j) + ".jpg", cutout(image, plates[j]));
-			for (int j = 0; j < bread.size(); j++)
-				cv::imwrite(BREAD_PATH + "tray" + to_string(i) + "/" + imgname + "/bread" + to_string(j) + ".jpg", image(bread[j]));
 		}
 
 		if (!SKIP)
@@ -166,7 +162,7 @@ int main()
 			cv::Mat image = cv::imread(DATASET_PATH + "tray" + to_string(i) + "/" + imgname + ".jpg");   // Read the image
 			vector<cv::Vec3f> plates = bb.front().getPlates();                                           // Get the plates from the queue
 			pair<bool, cv::Vec3f> salad = bb.front().getSalad();                                         // Get the salad from the queue
-			std::vector<cv::Rect> bread = bb.front().getBread();                                         // Get the bread from the queue
+			std::pair<bool, cv::Mat> bread = bb.front().getBread();                                      // Get the bread from the queue
 			bb.pop();                                                                                    // Pop the BoundingBoxes object from the queue
 			
 			vector<string> files;                                                              // Vector of strings containing the paths of the plates in the image
