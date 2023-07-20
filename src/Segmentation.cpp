@@ -101,6 +101,7 @@ void Segmentation::correction(cv::Mat& in, cv::Mat& out)
 	cv::equalizeHist(hsv_channels[1], hsv_channels[1]);
 	cv::merge(hsv_channels, out);
 	cv::cvtColor(out, out, cv::COLOR_HSV2BGR);
+
 	return;
 }
 
@@ -128,25 +129,20 @@ void Segmentation::process(cv::Mat& in, cv::Mat& out)
 	cv::medianBlur(in, in, 5);
 
 	// Closing
-	cv::Mat kernel = cv::getStructuringElement(cv::MORPH_ELLIPSE, cv::Size(50, 50)); //changed from 40x40
+	cv::Mat kernel = cv::getStructuringElement(cv::MORPH_ELLIPSE, cv::Size(50, 50));   //changed from 40x40
 	cv::morphologyEx(in, in, cv::MORPH_CLOSE, kernel);
 
 	// Dilation
 	out = cv::Mat::zeros(in.size(), CV_8UC1);
 	filterAreas(in, out, 8000);
-	cv::dilate(out, out, cv::getStructuringElement(cv::MORPH_ELLIPSE, cv::Size(25, 25))); //changed from 15x15
+	cv::dilate(out, out, cv::getStructuringElement(cv::MORPH_ELLIPSE, cv::Size(25, 25)));   //changed from 15x15
 
-	//closing
-	kernel = cv::getStructuringElement(cv::MORPH_ELLIPSE, cv::Size(40, 40)); //changed from 15x15
+	// Closing
+	kernel = cv::getStructuringElement(cv::MORPH_ELLIPSE, cv::Size(40, 40));   //changed from 15x15
 	cv::morphologyEx(out, out, cv::MORPH_CLOSE, kernel);
 
-	//filling holes
+	// Filling holes
 	fillHoles(out);
-
-	//cv::Mat original;
-	//cv::bitwise_and(plate, plate, original, out);
-	//cv::imshow("original", original);
-	//cv::waitKey(0);
 
 	return;
 }

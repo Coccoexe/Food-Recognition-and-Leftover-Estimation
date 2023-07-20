@@ -24,10 +24,14 @@
 
 #include <Python.h>
 
-#define DEBUG false // debug mode to check code logic
-#define SKIP true  // avoid CLIP processing to save time while developing
+#define DEBUG false   // debug mode to check code logic
+#define SKIP false    // avoid CLIP processing to save time while developing
 
 using namespace std;
+
+// IMPORTANT NOTICE:
+// While reading the code make sure to collapse lambda functions.
+// They were intended for such purpose and for you to hide away things that are not important to the main logic.
 
 int main()
 {	
@@ -52,8 +56,6 @@ int main()
 		const int y = cvRound(circle[1] - circle[2]) > 0 ? cvRound(circle[1] - circle[2]) : 0;
 		const int w = x + cvRound(2 * circle[2]) < image.cols ? cvRound(2 * circle[2]) : image.cols - x;
 		const int h = y + cvRound(2 * circle[2]) < image.rows ? cvRound(2 * circle[2]) : image.rows - y;
-		//std::cout << x << " " << y << " " << w << " " << h << std::endl;
-		//return image(cv::Rect(x, y, w, h));
 		
 		//return image inside circle
 		cv::Mat mask = cv::Mat::zeros(image.size(), CV_8UC1);
@@ -79,7 +81,7 @@ int main()
 		const unsigned int KERNEL_SIZE = 15;
 		auto filterAreas = [](const cv::Mat& input, cv::Mat& output, const unsigned int threshold) -> void
 		{
-			std::vector<std::vector<cv::Point>> c;
+			vector<vector<cv::Point>> c;
 
 			cv::findContours(input.clone(), c, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
 			for (int i = 0; i < c.size(); i++)
@@ -131,6 +133,17 @@ int main()
 
 		queue<BoundingBoxes> bb;   // Queue of BoundingBoxes objects: create them now and pop them later when processing
 
+		//    __	 
+		//  /    \	 First informative STOP sign.
+		// | STOP |	 The following for loop stands at the basis of the whole program:
+		//  \ __ /	 it reads the images and creates the BoundingBoxes objects.
+		//    ||	 
+		//    ||	 NOTE: the BoundingBoxes objects do not really contain proper bounding boxes (look at the class definition).
+		//    ||	     - plates: vector that contains circles computed with HoughCircles
+		//    ||	     - salad: pair <bool, circle> that tells if there is a salad or not and its position
+		//    ||	     - bread: pair <bool, image> that tells if there is a bread or not and the segmented mask
+		//  ~~~~~~~	 
+
 		// Read images and create BoundingBoxes objects
 		for (const auto& imgname : IMAGE_NAMES)
 		{	// For each image 'imgname' in tray [i]
@@ -146,6 +159,7 @@ int main()
 				cv::imwrite(PLATES_PATH + "tray" + to_string(i) + "/" + imgname + "/plate" + to_string(j) + ".jpg", cutout(image, plates[j]));
 		}
 
+		// Just ugly testing (slightly faster with pre-computed stuff), we ALWAYS want to enter here!
 		if (!SKIP)
 		{	// Plates segmentation using CLIP
 			if (DEBUG) cout << "Running Python script..." << endl;
@@ -161,7 +175,7 @@ int main()
 			cv::Mat image = cv::imread(DATASET_PATH + "tray" + to_string(i) + "/" + imgname + ".jpg");   // Read the image
 			vector<cv::Vec3f> plates = bb.front().getPlates();                                           // Get the plates from the queue
 			pair<bool, cv::Vec3f> salad = bb.front().getSalad();                                         // Get the salad from the queue
-			std::pair<bool, cv::Mat> bread = bb.front().getBread();                                      // Get the bread from the queue
+			pair<bool, cv::Mat> bread = bb.front().getBread();                                           // Get the bread from the queue
 			bb.pop();                                                                                    // Pop the BoundingBoxes object from the queue
 			
 			vector<string> files;                                                              // Vector of strings containing the paths of the plates in the image
@@ -169,8 +183,14 @@ int main()
 
 			cv::Mat tray_mask = cv::Mat::zeros(image.size(), CV_8UC1);   // Create the tray mask
 			vector<string> boxes;                                        // Vector of strings containing the bounding boxes of the plates in the image
-			std::vector<std::pair<int, cv::Rect>> tray_boxes;            // Final bounding boxes of the plates in the image
+			vector<pair<int, cv::Rect>> tray_boxes;                      // Final bounding boxes of the plates in the image
 
+			//     ____  __      __           
+			//    / __ \/ /___ _/ /____  _____
+			//   / /_/ / / __ `/ __/ _ \/ ___/
+			//  / ____/ / /_/ / /_/  __(__  ) 
+			// /_/   /_/\__,_/\__/\___/____/  
+			// 
 			// PLATES: Process each plate in the image
 			for (int j = 0; j < files.size(); j++)
 			{	// For each plate [j] in the image 'imgname' of tray [i]
@@ -195,7 +215,7 @@ int main()
 					int h = box[k].second.height;                            // Get the height of the bounding box
 
 					boxes.push_back("ID: " + to_string(label) + "; [" + to_string(x) + ", " + to_string(y) + ", " + to_string(w) + ", " + to_string(h) + "]");
-					tray_boxes.push_back(std::make_pair(label, cv::Rect(x, y, w, h)));
+					tray_boxes.push_back(make_pair(label, cv::Rect(x, y, w, h)));
 				}
 
 				// Add the mask of the plate [j] to the tray mask
@@ -208,6 +228,12 @@ int main()
 
 			if (DEBUG) { cv::imshow("tray_mask", tray_mask * 15); cv::waitKey(0); }
 
+			//    _____       __          __
+			//   / ___/____ _/ /___ _____/ /
+			//   \__ \/ __ `/ / __ `/ __  / 
+			//  ___/ / /_/ / / /_/ / /_/ /  
+			// /____/\__,_/_/\__,_/\__,_/   
+			//                              
 			// SALAD: Process the salad in the image
 			if (salad.first)
 			{	// If the salad is present in the image
@@ -240,13 +266,13 @@ int main()
 				cv::threshold(mask, mask, 0, LABEL, cv::THRESH_BINARY);   // Thresholding again to the correct label
 
 				// Find the bounding box of the salad
-				std::vector<std::vector<cv::Point>> contours;                                   // Vector of vectors of points containing the contours of the salad
+				vector<vector<cv::Point>> contours;                                             // Vector of vectors of points containing the contours of the salad
 				cv::findContours(mask, contours, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);   // Find the contours of the salad
-				std::vector<cv::Rect> box(contours.size());									    // Vector of rectangles containing the bounding boxes of the salad
+				vector<cv::Rect> box(contours.size());									        // Vector of rectangles containing the bounding boxes of the salad
 				
 				for (int i = 0; i < contours.size(); i++)
 					box[i] = cv::boundingRect(contours[i]);  // Get the bounding boxes of the salad
-				auto min = std::min_element(box.begin(), box.end(), [](const cv::Rect& a, const cv::Rect& b) { return a.area() < b.area(); });   // Get the smallest bounding box
+				auto min = min_element(box.begin(), box.end(), [](const cv::Rect& a, const cv::Rect& b) { return a.area() < b.area(); });   // Get the smallest bounding box
 
 				int x = min->x + salad.second[0] - salad.second[2];   // Get the x coordinate of the bounding box wrt the true image
 				int y = min->y + salad.second[1] - salad.second[2];   // Get the y coordinate of the bounding box wrt the true image
@@ -254,7 +280,7 @@ int main()
 				int h = min->height;                                  // Get the height of the bounding box
 
 				boxes.push_back("ID: " + to_string(LABEL) + "; [" + to_string(x) + ", " + to_string(y) + ", " + to_string(w) + ", " + to_string(h) + "]");
-				tray_boxes.push_back(std::make_pair(LABEL, cv::Rect(x, y, w, h)));
+				tray_boxes.push_back(make_pair(LABEL, cv::Rect(x, y, w, h)));
 
 				// Add the mask of the salad to the tray mask
 				for (int k = 0; k < mask.rows; k++)   // For each row [k] in the mask
@@ -266,6 +292,12 @@ int main()
 				if (DEBUG) { cv::imshow("w/salad", tray_mask * 15); cv::waitKey(0); }
 			}
 
+			//     ____                      __
+			//    / __ )________  ____ _____/ /
+			//   / __  / ___/ _ \/ __ `/ __  / 
+			//  / /_/ / /  /  __/ /_/ / /_/ /  
+			// /_____/_/   \___/\__,_/\__,_/   
+			//                                 
 			// BREAD: Process the bread in the image
 			if (bread.first)
 			{	// If the bread is present in the image
@@ -275,7 +307,7 @@ int main()
 				cv::threshold(bread.second, bread_mask, 0, LABEL, cv::THRESH_BINARY);   // Thresholding to the correct label
 				
 				// Bounding box
-				std::vector<std::vector<cv::Point>> contours;
+				vector<vector<cv::Point>> contours;
 				cv::findContours(bread_mask, contours, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
 				cv::Rect box = cv::boundingRect(contours[0]);
 
@@ -287,12 +319,22 @@ int main()
 
 				// Add the bounding box to the list of bounding boxes
 				boxes.push_back("ID: " + to_string(LABEL) + "; [" + to_string(x) + ", " + to_string(y) + ", " + to_string(w) + ", " + to_string(h) + "]");
-				tray_boxes.push_back(std::make_pair(LABEL, cv::Rect(x, y, w, h)));
+				tray_boxes.push_back(make_pair(LABEL, cv::Rect(x, y, w, h)));
 				tray_mask = tray_mask + bread_mask;
 
 				if (DEBUG) cv::imshow("w/bread", tray_mask * 15); cv::waitKey(0);
 			}
 
+			//    __	 
+			//  /    \	 Second informative STOP sign.
+			// | STOP |	 You have now finished processing the image and getting all the information you need.
+			//  \ __ /	 No more plates, salad or bread to process.
+			//    ||	 
+			//    ||	 The code below writes stuff to files, then pushes info that will be used later to the metrics vector.
+			//    ||	 
+			//    ||	 easy stuff
+			//    ||	 don't worry about it
+			//  ~~~~~~~	 
 			// Write bounding boxes to file
 			if (!filesystem::exists(OUTPUT_PATH + "tray" + to_string(i) + "/bounding_boxes/")) filesystem::create_directory(OUTPUT_PATH + "tray" + to_string(i) + "/bounding_boxes/");
 			for (int k = 0; k < boxes.size(); k++)
@@ -344,11 +386,25 @@ int main()
 		}
 	}
 
+	//       (                 ,&&&.    
+	//        )                .,.&&    Welcome traveler, you finally made it to the end!
+	//       (  (              \=__/    But your journey is not over yet, there is still one more thing to do.
+	//           )             ,'-'.    Before venturing into the Metrics class, take some well deserved rest.
+	//     (    (  ,,      _.__|/ /|    
+	//      ) /\ -((------((_|___/ |    Alessio Cocco, Andrea Valentinuzzi, Giovanni Brejc
+	//    (  // | (`'      ((  `'--|    wish you the best of luck for this final stretch.
+	//  _ -.;_/ \\--._      \\ \-._/.   
+	// (_;-// | \ \-'.\    <_,\_\`--'|  GLHF!
+	// ( `.__ _  ___,')      <_,-'__,'  :)
+	//  `'(_ )_)(_)_)'				    
+	//								    
 	// METRICS: compute the metrics
 	Metrics m(metrics);
 
 	// Python finalization
 	Py_Finalize();
+
+	cout << "You got here, all is good :)" << endl;
 
 	return 0;
 }
