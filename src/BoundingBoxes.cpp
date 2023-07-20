@@ -6,7 +6,7 @@
 #include <opencv2/imgproc.hpp>
 #include <opencv2/ximgproc.hpp>
 
-#define DEBUG true
+#define DEBUG false
 
 BoundingBoxes::BoundingBoxes(const cv::Mat& input)
 	: source_image(input)

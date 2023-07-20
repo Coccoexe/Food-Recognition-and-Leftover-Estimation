@@ -66,7 +66,7 @@ def process_image(img, labels):
     values = []
     indices = []
     for i in range(len(labels)):
-        if similarity[0][i] > 0.01:
+        if similarity[0][i] > 0.02:
             values.append(similarity[0][i])
             indices.append(i)
 
@@ -258,7 +258,7 @@ def plates( i : int = None ):
         "pasta with pesto",
         "pasta with tomato sauce",
         "pasta with meat sauce",
-        "pasta with clams and mussels",
+        "pasta with shelled clams or mussels",
         "pilaw rice with peppers and peas",
         "pork meat slices or thin pork chop slices or pork loin roast slices",
         "fish cutlet",
