@@ -16,5 +16,4 @@ private:
 	std::vector<double> true_positives;
 	std::vector<std::vector<double>> precision;
 	std::vector<std::vector<double>> recall;
-	std::vector<double> average_precision;
 };
