@@ -25,7 +25,7 @@
 #include <Python.h>
 
 #define DEBUG false // debug mode to check code logic
-#define SKIP true  // avoid CLIP processing to save time while developing
+#define SKIP false  // avoid CLIP processing to save time while developing
 
 using namespace std;
 
@@ -115,7 +115,6 @@ int main()
 	PyObject* pName = PyUnicode_FromString("CLIP_interface");		    //  / ____/ /_/ / /_/ / / / /_/ / / / /
 	PyObject* pModule = PyImport_ImportModule("CLIP_interface");	    // /_/    \__, /\__/_/ /_/\____/_/ /_/
 	PyObject* pFunc = PyObject_GetAttrString(pModule, "plates");	    //       /____/
-	PyObject* pFunc_bread = PyObject_GetAttrString(pModule, "bread");   //
 	PyObject* pArgs = PyTuple_New(1);								    //
 
 	// START OF THE MAIN LOOP
@@ -267,29 +266,9 @@ int main()
 			}
 
 			// BREAD: Process the bread in the image
-			if (!SKIP)
-			{   // Bread detection with CLIP
-				if (DEBUG) cout << "Running Python script..." << endl;
-				PyObject* pValue = PyLong_FromLong(i);
-				PyTuple_SetItem(pArgs, 0, pValue);
-				PyObject_CallObject(pFunc_bread, pArgs);
-				if (DEBUG) cout << "Python script finished" << endl;
-			}
-			if (!filesystem::is_empty(BREAD_OUT_PATH + "tray" + to_string(i) + "/" + imgname + "/"))
+			if (false)
 			{	// Bread segmentation, if the bread is present in the image (CLIP found bread in one of the subimages)
-				vector<string> files;
-				for (const auto& entry : filesystem::directory_iterator(BREAD_OUT_PATH + "tray" + to_string(i) + "/" + imgname + "/"))
-					files.push_back(entry.path().string());                 // Get the paths of the files in the directory
-				string breadimg = files[0].substr(0, files[0].size() - 4);	// Remove .txt
-				breadimg.replace(0, BREAD_OUT_PATH.size(), BREAD_PATH);		// Replace path
-				cv::Mat bread = cv::imread(breadimg);                       // Read the bread image
-
-				if (DEBUG) { cv::imshow("bread", bread); cv::waitKey(0); }
-
-				bread = image.clone();
-				cv::circle(bread, cv::Point(salad.second[0], salad.second[1]), salad.second[2], cv::Scalar(0, 0, 0), -1);
-				for (const auto circle : plates)
-					cv::circle(bread, cv::Point(circle[0], circle[1]), circle[2], cv::Scalar(0, 0, 0), -1);
+				
 
 				// TESTS DOWN HERE
 				/*
