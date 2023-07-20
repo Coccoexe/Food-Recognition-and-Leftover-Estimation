@@ -25,7 +25,7 @@
 #include <Python.h>
 
 #define DEBUG false // debug mode to check code logic
-#define SKIP false  // avoid CLIP processing to save time while developing
+#define SKIP true  // avoid CLIP processing to save time while developing
 
 using namespace std;
 
@@ -267,98 +267,35 @@ int main()
 			}
 
 			// BREAD: Process the bread in the image
-			if (false)
+			if (bread.first)
 			{	// Bread segmentation, if the bread is present in the image (CLIP found bread in one of the subimages)
+				const int LABEL = 13;
+
+				cv::Mat bread_mask;
+				cv::threshold(bread.second, bread_mask, 0, LABEL, cv::THRESH_BINARY);
 				
+				// bounding box
+				std::vector<std::vector<cv::Point>> contours;
+				cv::findContours(bread_mask, contours, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
+				std::vector<cv::Rect> box(contours.size());
 
-				// TESTS DOWN HERE
-				/*
-				//gamma correction
+				for (int i = 0; i < contours.size(); i++)
+					box[i] = cv::boundingRect(contours[i]);
+				auto min = std::min_element(box.begin(), box.end(), [](const cv::Rect& a, const cv::Rect& b) { return a.area() < b.area(); });
 
-				cv::Mat gamma;
-				cv::Mat lookUpTable(1, 256, CV_8U);
-				uchar* p = lookUpTable.ptr();
-				double gamma_ = 0.5;
-				for (int i = 0; i < 256; ++i)
-					p[i] = cv::saturate_cast<uchar>(pow(i / 255.0, gamma_) * 255.0);
-				cv::LUT(bread, lookUpTable, gamma);
+				// get Rect coordinates
+				int x = min->x;
+				int y = min->y;
+				int w = min->width;
+				int h = min->height;
+				
+				boxes.push_back("ID: " + to_string(LABEL) + "; [" + to_string(x) + ", " + to_string(y) + ", " + to_string(w) + ", " + to_string(h) + "]");
+				tray_boxes.push_back(std::make_pair(LABEL, cv::Rect(x, y, w, h)));
 
-				//cv::circle(gamma, cv::Point(salad.second[0], salad.second[1]), salad.second[2], cv::Scalar(0, 0, 0), -1);
-				//for (const auto circle : plates)
-				//	cv::circle(gamma, cv::Point(circle[0], circle[1]), circle[2], cv::Scalar(0, 0, 0), -1);
+				tray_mask = tray_mask + bread_mask;
 
-				//to hsv
-				cv::Mat hsv;
-				cv::cvtColor(gamma, hsv, cv::COLOR_BGR2HSV);
-				vector<cv::Mat> hsv_channels;
-				cv::split(hsv, hsv_channels);
-				cv::equalizeHist(hsv_channels[1], hsv_channels[1]);
-				cv::merge(hsv_channels, hsv);
-				//to rgb
-				cv::Mat rgb;
-				cv::cvtColor(hsv, rgb, cv::COLOR_HSV2BGR);
+				if (DEBUG) cv::imshow("w/bread", tray_mask * 15); cv::waitKey(0);
 
-				int sat = 182;
-				int bMin = 0;
-				int bMax = 255;
-				int gMin = 198;
-				int gMax = 253;
-				int rMin = 130;
-				int rMax = 220;
-
-				cv::namedWindow("trackbars", cv::WINDOW_NORMAL);
-				cv::createTrackbar("sat", "trackbars", &sat, 255);
-				cv::createTrackbar("bMin", "trackbars", &bMin, 255);
-				cv::createTrackbar("bMax", "trackbars", &bMax, 255);
-				cv::createTrackbar("gMin", "trackbars", &gMin, 255);
-				cv::createTrackbar("gMax", "trackbars", &gMax, 255);
-				cv::createTrackbar("rMin", "trackbars", &rMin, 255);
-				cv::createTrackbar("rMax", "trackbars", &rMax, 255);
-
-
-				while (DEBUG)
-				{
-					cv::Mat satr, ranged, original_sat, original_ran, mask;
-					//cv::threshold(hsv_channels[1], satr, sat, 13, cv::THRESH_BINARY);
-					//satr = process(satr);
-					//cv::copyTo(gamma, original_sat, satr);
-					//cv::inRange(original_sat, cv::Scalar(bMin, gMin, rMin), cv::Scalar(bMax, gMax, rMax), ranged);
-					//mask = process(ranged);
-					//cv::copyTo(gamma, original_ran, mask);
-					//cv::imshow("ranged", original_ran);
-					cv::inRange(rgb, cv::Scalar(bMin, gMin, rMin), cv::Scalar(bMax, gMax, rMax), mask);
-					cv::imshow("filtered", mask);
-
-					cv::Mat original;
-					cv::bitwise_and(rgb, rgb, original, mask);
-
-					cv::imshow("original", original);
-					
-					if (cv::waitKey(1) == 27) break;
-					if (cv::waitKey(1) == 13)
-					{
-						cout << "Blue range: " << bMin << " " << bMax << endl;
-						cout << "Green range: " << gMin << " " << gMax << endl;
-						cout << "Red range: " << rMin << " " << rMax << endl;
-						cv::Mat temp;
-						cv::inRange(rgb, cv::Scalar(bMin, gMin, rMin), cv::Scalar(bMax, gMax, rMax), temp);
-						cv::imshow("img", process(temp));
-						cv::waitKey(0);
-					}
-
-					sat = cv::getTrackbarPos("sat", "trackbars");
-					bMin = cv::getTrackbarPos("bMin", "trackbars");
-					bMax = cv::getTrackbarPos("bMax", "trackbars");
-					gMin = cv::getTrackbarPos("gMin", "trackbars");
-					gMax = cv::getTrackbarPos("gMax", "trackbars");
-					rMin = cv::getTrackbarPos("rMin", "trackbars");
-					rMax = cv::getTrackbarPos("rMax", "trackbars");
-				}
-				cv::destroyAllWindows();
-
-				cv::Mat mask;
-				cv::threshold(hsv_channels[1], mask, sat, 13, cv::THRESH_BINARY);
-				mask = process(mask);*/
 			}
 
 			// Write bounding boxes to file

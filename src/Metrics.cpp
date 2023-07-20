@@ -39,13 +39,6 @@ Metrics::Metrics(std::vector<std::vector<std::tuple<cv::Mat, std::vector<std::pa
 			}
 		}
 	}
-	for (int i = 0; i < 14; i++)
-	{
-		double sum = 0;
-		for (const auto& iou : IoU[i])
-			sum += iou;
-		std::cout << "IoU[" << i << "] = " << sum / IoU[i].size() << std::endl;
-	}
 
 
 	// Food leftover estimation
@@ -225,7 +218,9 @@ Metrics::Metrics(std::vector<std::vector<std::tuple<cv::Mat, std::vector<std::pa
 	for (int i = 1; i < 14; i++)
 		mean += average_precision[i];
 	mean /= 13.0;
-	std::cout << "mean: " << mean << std::endl;
+	if (DEBUG) std::cout << "mean: " << mean << std::endl;
+
+
 
 	//write results to file
 	file.open("./output/metrics_results.txt");
@@ -245,6 +240,7 @@ Metrics::Metrics(std::vector<std::vector<std::tuple<cv::Mat, std::vector<std::pa
 		for (int j = 0; j < IoU[i].size(); j++)
 			mean_iou += IoU[i][j];
 		mean_iou /= IoU[i].size();
+		if (DEBUG) std::cout << "label: " << i << " mIoU: " << mean_iou << std::endl;
 		file << "label: " << i << " mIoU: " << mean_iou << std::endl;
 	}
 	file << std::endl;
